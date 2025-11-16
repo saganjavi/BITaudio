@@ -23,8 +23,19 @@ const storage = multer.diskStorage({
     cb(null, uploadsDir);
   },
   filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, uniqueSuffix + '-' + file.originalname);
+    // Formato: YYYYMMDD_nombrearchivo.ext
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const datePrefix = `${year}${month}${day}`;
+
+    // Obtener nombre sin extensión y extensión
+    const ext = path.extname(file.originalname);
+    const nameWithoutExt = path.basename(file.originalname, ext);
+
+    const newFilename = `${datePrefix}_${nameWithoutExt}${ext}`;
+    cb(null, newFilename);
   }
 });
 
@@ -249,7 +260,10 @@ app.post('/api/transcribe', upload.single('audio'), async (req, res) => {
   res.setHeader('Transfer-Encoding', 'chunked');
 
   const inputPath = req.file.path;
-  const chunksDir = path.join(__dirname, 'chunks', Date.now().toString());
+  // Usar el nombre del archivo (sin extensión) para la carpeta de chunks
+  // El archivo ya tiene formato YYYYMMDD_nombrearchivo.ext
+  const fileBaseName = path.basename(req.file.filename, path.extname(req.file.filename));
+  const chunksDir = path.join(__dirname, 'chunks', fileBaseName);
 
   try {
     await fs.mkdir(chunksDir, { recursive: true });
@@ -299,7 +313,8 @@ app.post('/api/transcribe', upload.single('audio'), async (req, res) => {
     // Generar PDF de la transcripción
     let pdfFilename = null;
     try {
-      pdfFilename = await generateTranscriptionPDF(fullTranscription, req.file.originalname);
+      // Usar req.file.filename que ya tiene formato YYYYMMDD_nombrearchivo.ext
+      pdfFilename = await generateTranscriptionPDF(fullTranscription, req.file.filename);
     } catch (pdfError) {
       console.error('Error generando PDF:', pdfError);
     }
@@ -315,15 +330,9 @@ app.post('/api/transcribe', upload.single('audio'), async (req, res) => {
 
     res.end();
 
-    // Limpiar chunks temporales
-    setTimeout(async () => {
-      try {
-        await fs.rm(chunksDir, { recursive: true, force: true });
-        console.log(`Chunks temporales limpiados: ${chunksDir}`);
-      } catch (err) {
-        console.error('Error limpiando chunks:', err);
-      }
-    }, 5000);
+    // Los chunks se mantienen para gestión manual
+    // Pueden eliminarse desde la interfaz de gestión en /manage.html
+    console.log(`Carpeta de chunks creada: ${chunksDir}`);
 
   } catch (error) {
     console.error('Error general:', error);
