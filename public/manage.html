@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gestión de Archivos - Audio Splitter</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    .management-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 2rem;
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 1rem;
+    }
+
+    .nav-links a {
+      color: var(--text-color);
+      text-decoration: none;
+      padding: 0.5rem 1rem;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.1);
+      transition: all 0.3s ease;
+    }
+
+    .nav-links a:hover {
+      background: rgba(255, 255, 255, 0.2);
+      transform: translateY(-2px);
+    }
+
+    .files-section {
+      background: rgba(255, 255, 255, 0.05);
+      padding: 2rem;
+      border-radius: 16px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    }
+
+    .files-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.5rem;
+      padding-bottom: 1rem;
+      border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .files-stats {
+      display: flex;
+      gap: 2rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .stat-item {
+      flex: 1;
+      padding: 1rem;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 8px;
+      text-align: center;
+    }
+
+    .stat-item .label {
+      font-size: 0.875rem;
+      color: rgba(255, 255, 255, 0.7);
+      margin-bottom: 0.5rem;
+    }
+
+    .stat-item .value {
+      font-size: 1.5rem;
+      font-weight: bold;
+      color: var(--primary-color);
+    }
+
+    .files-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 1rem;
+    }
+
+    .files-table thead {
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    .files-table th {
+      padding: 1rem;
+      text-align: left;
+      font-weight: 600;
+      color: rgba(255, 255, 255, 0.9);
+      border-bottom: 2px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .files-table td {
+      padding: 1rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .files-table tbody tr {
+      transition: background 0.2s ease;
+    }
+
+    .files-table tbody tr:hover {
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .file-name {
+      font-weight: 500;
+      color: var(--text-color);
+      word-break: break-all;
+    }
+
+    .file-size {
+      color: rgba(255, 255, 255, 0.7);
+    }
+
+    .file-date {
+      color: rgba(255, 255, 255, 0.6);
+      font-size: 0.875rem;
+    }
+
+    .btn-delete {
+      background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+      color: white;
+      border: none;
+      padding: 0.5rem 1rem;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.875rem;
+      transition: all 0.3s ease;
+    }
+
+    .btn-delete:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+    }
+
+    .btn-delete:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 3rem;
+      color: rgba(255, 255, 255, 0.6);
+    }
+
+    .empty-state svg {
+      width: 64px;
+      height: 64px;
+      margin: 0 auto 1rem;
+      opacity: 0.3;
+    }
+
+    .btn-refresh {
+      background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    }
+
+    .btn-delete-all {
+      background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+    }
+
+    .loading {
+      text-align: center;
+      padding: 2rem;
+      color: rgba(255, 255, 255, 0.7);
+    }
+
+    .spinner {
+      border: 3px solid rgba(255, 255, 255, 0.1);
+      border-radius: 50%;
+      border-top: 3px solid var(--primary-color);
+      width: 40px;
+      height: 40px;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 1rem;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .action-buttons {
+      display: flex;
+      gap: 1rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="management-header">
+        <div>
+          <h1>Gestión de Archivos</h1>
+          <p>Administra los archivos subidos al servidor</p>
+        </div>
+        <div class="nav-links">
+          <a href="/">← Volver al inicio</a>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <section class="files-section">
+        <div class="files-header">
+          <h2>Archivos Subidos</h2>
+          <div class="action-buttons">
+            <button class="btn btn-secondary btn-refresh" id="refreshBtn">
+              🔄 Actualizar
+            </button>
+            <button class="btn btn-delete btn-delete-all" id="deleteAllBtn">
+              🗑️ Eliminar todos
+            </button>
+          </div>
+        </div>
+
+        <div class="files-stats">
+          <div class="stat-item">
+            <div class="label">Total de archivos</div>
+            <div class="value" id="totalFiles">-</div>
+          </div>
+          <div class="stat-item">
+            <div class="label">Espacio utilizado</div>
+            <div class="value" id="totalSize">-</div>
+          </div>
+        </div>
+
+        <div id="filesContent">
+          <div class="loading">
+            <div class="spinner"></div>
+            <p>Cargando archivos...</p>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <p>Audio Splitter v1.0 | Gestión de Archivos</p>
+    </footer>
+  </div>
+
+  <script src="manage.js"></script>
+</body>
+</html>
