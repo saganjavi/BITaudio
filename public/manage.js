@@ -1,6 +1,7 @@
 // Variables globales
 let files = [];
 let chunkFolders = [];
+let transcripciones = [];
 let expandedFolders = new Set();
 
 // Elementos del DOM
@@ -17,15 +18,25 @@ const deleteAllChunksBtn = document.getElementById('deleteAllChunksBtn');
 const totalChunkFoldersEl = document.getElementById('totalChunkFolders');
 const totalChunksSizeEl = document.getElementById('totalChunksSize');
 
+// Elementos de transcripciones
+const transcripcionesContent = document.getElementById('transcripcionesContent');
+const refreshTranscripcionesBtn = document.getElementById('refreshTranscripcionesBtn');
+const deleteAllTranscripcionesBtn = document.getElementById('deleteAllTranscripcionesBtn');
+const totalTranscripcionesEl = document.getElementById('totalTranscripciones');
+const totalTranscripcionesSizeEl = document.getElementById('totalTranscripcionesSize');
+
 // Event listeners
 refreshBtn.addEventListener('click', loadFiles);
 deleteAllBtn.addEventListener('click', confirmDeleteAll);
 refreshChunksBtn.addEventListener('click', loadChunkFolders);
 deleteAllChunksBtn.addEventListener('click', confirmDeleteAllChunks);
+refreshTranscripcionesBtn.addEventListener('click', loadTranscripciones);
+deleteAllTranscripcionesBtn.addEventListener('click', confirmDeleteAllTranscripciones);
 
 // Cargar archivos al iniciar
 loadFiles();
 loadChunkFolders();
+loadTranscripciones();
 
 // Función para cargar archivos desde el servidor
 async function loadFiles() {
@@ -594,6 +605,223 @@ async function deleteAllChunkFolders() {
   } finally {
     deleteAllChunksBtn.disabled = false;
     deleteAllChunksBtn.textContent = '🗑️ Eliminar todos';
+  }
+}
+
+// ========== FUNCIONES DE TRANSCRIPCIONES ==========
+
+// Cargar transcripciones PDF
+async function loadTranscripciones() {
+  try {
+    showTranscripcionesLoading();
+
+    const response = await fetch('/api/transcripciones');
+
+    if (!response.ok) {
+      throw new Error(`Error HTTP: ${response.status}`);
+    }
+
+    const data = await response.json();
+
+    if (!data.success) {
+      throw new Error(data.error || 'Error desconocido');
+    }
+
+    transcripciones = data.files;
+    updateTranscripcionesStats();
+    renderTranscripciones();
+
+  } catch (error) {
+    console.error('Error cargando transcripciones:', error);
+    showTranscripcionesError('Error al cargar las transcripciones: ' + error.message);
+  }
+}
+
+// Mostrar estado de carga de transcripciones
+function showTranscripcionesLoading() {
+  transcripcionesContent.innerHTML = `
+    <div class="loading">
+      <div class="spinner"></div>
+      <p>Cargando transcripciones...</p>
+    </div>
+  `;
+}
+
+// Mostrar error de transcripciones
+function showTranscripcionesError(message) {
+  transcripcionesContent.innerHTML = `
+    <div class="empty-state">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+        <circle cx="12" cy="12" r="10"></circle>
+        <line x1="12" y1="8" x2="12" y2="12"></line>
+        <line x1="12" y1="16" x2="12.01" y2="16"></line>
+      </svg>
+      <h3>Error</h3>
+      <p>${message}</p>
+      <button class="btn btn-primary" onclick="loadTranscripciones()">Reintentar</button>
+    </div>
+  `;
+}
+
+// Actualizar estadísticas de transcripciones
+function updateTranscripcionesStats() {
+  totalTranscripcionesEl.textContent = transcripciones.length;
+
+  const totalBytes = transcripciones.reduce((sum, file) => sum + file.size, 0);
+  totalTranscripcionesSizeEl.textContent = formatBytes(totalBytes);
+}
+
+// Renderizar tabla de transcripciones
+function renderTranscripciones() {
+  if (transcripciones.length === 0) {
+    transcripcionesContent.innerHTML = `
+      <div class="empty-state">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+          <polyline points="14 2 14 8 20 8"></polyline>
+          <line x1="16" y1="13" x2="8" y2="13"></line>
+          <line x1="16" y1="17" x2="8" y2="17"></line>
+          <polyline points="10 9 9 9 8 9"></polyline>
+        </svg>
+        <h3>No hay transcripciones</h3>
+        <p>No se encontraron transcripciones PDF en el servidor.</p>
+        <a href="/" class="btn btn-primary">Crear transcripción</a>
+      </div>
+    `;
+    return;
+  }
+
+  transcripcionesContent.innerHTML = `
+    <table class="files-table">
+      <thead>
+        <tr>
+          <th>Nombre del archivo</th>
+          <th>Tamaño</th>
+          <th>Fecha de creación</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${transcripciones.map(file => `
+          <tr data-filename="${escapeHtml(file.name)}">
+            <td class="file-name">📄 ${escapeHtml(file.name)}</td>
+            <td class="file-size">${file.sizeFormatted}</td>
+            <td class="file-date">${formatDate(file.createdAt)}</td>
+            <td>
+              <a href="/api/transcripciones/${encodeURIComponent(file.name)}"
+                 class="btn-download"
+                 download="${escapeHtml(file.name)}"
+                 style="margin-right: 0.5rem;">
+                ⬇️ Descargar
+              </a>
+              <button class="btn-delete" onclick="confirmDeleteTranscripcion('${escapeHtml(file.name)}')">
+                🗑️ Eliminar
+              </button>
+            </td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  `;
+}
+
+// Confirmar eliminación de transcripción
+async function confirmDeleteTranscripcion(filename) {
+  if (!confirm(`¿Estás seguro de que quieres eliminar la transcripción "${filename}"?`)) {
+    return;
+  }
+
+  await deleteTranscripcion(filename);
+}
+
+// Eliminar transcripción
+async function deleteTranscripcion(filename) {
+  try {
+    const row = document.querySelector(`tr[data-filename="${filename}"]`);
+    if (row) {
+      const btn = row.querySelector('.btn-delete');
+      btn.disabled = true;
+      btn.textContent = '⏳ Eliminando...';
+    }
+
+    const response = await fetch(`/api/transcripciones/${encodeURIComponent(filename)}`, {
+      method: 'DELETE'
+    });
+
+    const data = await response.json();
+
+    if (!data.success) {
+      throw new Error(data.error || 'Error eliminando transcripción');
+    }
+
+    console.log('Transcripción eliminada:', filename);
+
+    // Recargar lista
+    await loadTranscripciones();
+
+    showNotification(`Transcripción "${filename}" eliminada correctamente`, 'success');
+
+  } catch (error) {
+    console.error('Error eliminando transcripción:', error);
+    showNotification('Error al eliminar la transcripción: ' + error.message, 'error');
+
+    const row = document.querySelector(`tr[data-filename="${filename}"]`);
+    if (row) {
+      const btn = row.querySelector('.btn-delete');
+      btn.disabled = false;
+      btn.textContent = '🗑️ Eliminar';
+    }
+  }
+}
+
+// Confirmar eliminación de todas las transcripciones
+async function confirmDeleteAllTranscripciones() {
+  if (transcripciones.length === 0) {
+    showNotification('No hay transcripciones para eliminar', 'info');
+    return;
+  }
+
+  const confirmed = confirm(
+    `¿Estás seguro de que quieres eliminar TODAS las transcripciones (${transcripciones.length} archivos)?\n\n` +
+    'Esta acción no se puede deshacer.'
+  );
+
+  if (!confirmed) {
+    return;
+  }
+
+  await deleteAllTranscripciones();
+}
+
+// Eliminar todas las transcripciones
+async function deleteAllTranscripciones() {
+  try {
+    deleteAllTranscripcionesBtn.disabled = true;
+    deleteAllTranscripcionesBtn.textContent = '⏳ Eliminando...';
+
+    const response = await fetch('/api/transcripciones', {
+      method: 'DELETE'
+    });
+
+    const data = await response.json();
+
+    if (!data.success) {
+      throw new Error(data.error || 'Error eliminando transcripciones');
+    }
+
+    console.log('Transcripciones eliminadas:', data.count);
+
+    // Recargar lista
+    await loadTranscripciones();
+
+    showNotification(`${data.count} transcripciones eliminadas correctamente`, 'success');
+
+  } catch (error) {
+    console.error('Error eliminando transcripciones:', error);
+    showNotification('Error al eliminar las transcripciones: ' + error.message, 'error');
+  } finally {
+    deleteAllTranscripcionesBtn.disabled = false;
+    deleteAllTranscripcionesBtn.textContent = '🗑️ Eliminar todos';
   }
 }
 

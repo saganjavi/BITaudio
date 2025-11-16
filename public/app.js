@@ -23,6 +23,7 @@ fileInput.addEventListener('change', handleFileSelect);
 submitBtn.addEventListener('click', handleSubmit);
 document.getElementById('copyBtn')?.addEventListener('click', copyTranscription);
 document.getElementById('downloadBtn')?.addEventListener('click', downloadTranscription);
+document.getElementById('downloadPdfBtn')?.addEventListener('click', downloadPDF);
 document.getElementById('resetBtn')?.addEventListener('click', resetForm);
 document.getElementById('errorResetBtn')?.addEventListener('click', resetForm);
 
@@ -200,18 +201,26 @@ function showResults(data) {
   console.log('Mostrando resultados finales');
   progressSection.style.display = 'none';
   resultsSection.style.display = 'block';
-  
+
   document.getElementById('resultChunks').textContent = data.chunkCount;
   const minutes = Math.floor(data.duration / 60);
   const seconds = data.duration % 60;
-  document.getElementById('resultDuration').textContent = 
+  document.getElementById('resultDuration').textContent =
     `${minutes}m ${seconds}s`;
   document.getElementById('transcriptionText').textContent = data.transcription;
 
-  // Guardar transcripción para copiar/descargar
+  // Guardar transcripción y PDF para descargar
   window.currentTranscription = data.transcription;
-  
+  window.currentPdfFilename = data.pdfFilename;
+
+  // Mostrar botón de descarga PDF si se generó correctamente
+  const pdfBtn = document.getElementById('downloadPdfBtn');
+  if (data.pdfFilename && pdfBtn) {
+    pdfBtn.style.display = 'inline-block';
+  }
+
   console.log('Transcripción guardada:', data.transcription.substring(0, 100) + '...');
+  console.log('PDF generado:', data.pdfFilename);
 }
 
 function showError(message) {
@@ -237,9 +246,21 @@ function copyTranscription() {
 function downloadTranscription() {
   if (window.currentTranscription) {
     const element = document.createElement('a');
-    element.setAttribute('href', 'data:text/plain;charset=utf-8,' + 
+    element.setAttribute('href', 'data:text/plain;charset=utf-8,' +
       encodeURIComponent(window.currentTranscription));
     element.setAttribute('download', 'transcripcion.txt');
+    element.style.display = 'none';
+    document.body.appendChild(element);
+    element.click();
+    document.body.removeChild(element);
+  }
+}
+
+function downloadPDF() {
+  if (window.currentPdfFilename) {
+    const element = document.createElement('a');
+    element.setAttribute('href', `/api/transcripciones/${encodeURIComponent(window.currentPdfFilename)}`);
+    element.setAttribute('download', window.currentPdfFilename);
     element.style.display = 'none';
     document.body.appendChild(element);
     element.click();
@@ -257,7 +278,14 @@ function resetForm() {
   errorSection.style.display = 'none';
   uploadSection.style.display = 'block';
   window.currentTranscription = null;
-  
+  window.currentPdfFilename = null;
+
+  // Ocultar botón de PDF
+  const pdfBtn = document.getElementById('downloadPdfBtn');
+  if (pdfBtn) {
+    pdfBtn.style.display = 'none';
+  }
+
   // Limpiar barras de progreso
   document.getElementById('splitProgress').style.width = '0%';
   document.getElementById('transcribeProgress').style.width = '0%';

@@ -373,6 +373,39 @@
           </div>
         </div>
       </section>
+
+      <!-- Sección de Transcripciones -->
+      <section class="files-section" style="margin-top: 2rem;">
+        <div class="files-header">
+          <h2>Transcripciones PDF</h2>
+          <div class="action-buttons">
+            <button class="btn btn-secondary btn-refresh" id="refreshTranscripcionesBtn">
+              🔄 Actualizar
+            </button>
+            <button class="btn btn-delete btn-delete-all" id="deleteAllTranscripcionesBtn">
+              🗑️ Eliminar todos
+            </button>
+          </div>
+        </div>
+
+        <div class="files-stats">
+          <div class="stat-item">
+            <div class="label">Total de transcripciones</div>
+            <div class="value" id="totalTranscripciones">-</div>
+          </div>
+          <div class="stat-item">
+            <div class="label">Espacio utilizado</div>
+            <div class="value" id="totalTranscripcionesSize">-</div>
+          </div>
+        </div>
+
+        <div id="transcripcionesContent">
+          <div class="loading">
+            <div class="spinner"></div>
+            <p>Cargando transcripciones...</p>
+          </div>
+        </div>
+      </section>
     </main>
 
     <footer>

@@ -6,6 +6,7 @@ const fs = require('fs').promises;
 const { spawn } = require('child_process');
 const FormData = require('form-data');
 const fetch = require('node-fetch');
+const PDFDocument = require('pdfkit');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -38,7 +39,7 @@ app.use(express.json());
 
 // Asegurar que los directorios existen
 async function ensureDirectories() {
-  const dirs = ['uploads', 'chunks'];
+  const dirs = ['uploads', 'chunks', 'transcripciones'];
   for (const dir of dirs) {
     const dirPath = path.join(__dirname, dir);
     try {
@@ -146,6 +147,97 @@ async function transcribeChunk(chunkPath) {
   return data.text;
 }
 
+// Función para generar PDF de transcripción
+async function generateTranscriptionPDF(transcription, originalFilename) {
+  return new Promise((resolve, reject) => {
+    try {
+      // Obtener nombre base sin extensión
+      const baseName = path.basename(originalFilename, path.extname(originalFilename));
+      const pdfFilename = `${baseName}.pdf`;
+      const pdfPath = path.join(__dirname, 'transcripciones', pdfFilename);
+
+      // Crear documento PDF
+      const doc = new PDFDocument({
+        size: 'A4',
+        margins: {
+          top: 50,
+          bottom: 50,
+          left: 50,
+          right: 50
+        }
+      });
+
+      // Stream para guardar el archivo
+      const stream = require('fs').createWriteStream(pdfPath);
+
+      doc.pipe(stream);
+
+      // Título
+      doc.fontSize(20)
+         .font('Helvetica-Bold')
+         .text('Transcripción de Audio', { align: 'center' });
+
+      doc.moveDown(0.5);
+
+      // Información del archivo
+      doc.fontSize(12)
+         .font('Helvetica')
+         .text(`Archivo: ${originalFilename}`, { align: 'center' });
+
+      doc.fontSize(10)
+         .fillColor('#666666')
+         .text(`Fecha: ${new Date().toLocaleString('es-ES')}`, { align: 'center' });
+
+      doc.moveDown(1.5);
+
+      // Línea separadora
+      doc.strokeColor('#cccccc')
+         .lineWidth(1)
+         .moveTo(50, doc.y)
+         .lineTo(545, doc.y)
+         .stroke();
+
+      doc.moveDown(1);
+
+      // Contenido de la transcripción
+      doc.fontSize(11)
+         .fillColor('#000000')
+         .font('Helvetica')
+         .text(transcription, {
+           align: 'justify',
+           lineGap: 5
+         });
+
+      // Pie de página
+      const pageCount = doc.bufferedPageRange().count;
+      for (let i = 0; i < pageCount; i++) {
+        doc.switchToPage(i);
+        doc.fontSize(9)
+           .fillColor('#999999')
+           .text(
+             `Página ${i + 1} de ${pageCount}`,
+             50,
+             doc.page.height - 50,
+             { align: 'center' }
+           );
+      }
+
+      // Finalizar documento
+      doc.end();
+
+      stream.on('finish', () => {
+        console.log(`PDF generado: ${pdfFilename}`);
+        resolve(pdfFilename);
+      });
+
+      stream.on('error', reject);
+
+    } catch (error) {
+      reject(error);
+    }
+  });
+}
+
 // Endpoint principal de transcripción
 app.post('/api/transcribe', upload.single('audio'), async (req, res) => {
   if (!req.file) {
@@ -203,11 +295,21 @@ app.post('/api/transcribe', upload.single('audio'), async (req, res) => {
 
     // Resultado final
     const fullTranscription = transcriptions.join(' ');
+
+    // Generar PDF de la transcripción
+    let pdfFilename = null;
+    try {
+      pdfFilename = await generateTranscriptionPDF(fullTranscription, req.file.originalname);
+    } catch (pdfError) {
+      console.error('Error generando PDF:', pdfError);
+    }
+
     res.write(JSON.stringify({
       status: 'complete',
       transcription: fullTranscription,
       chunkCount: chunks.length,
       duration: 0, // Aquí podrías calcular la duración real
+      pdfFilename: pdfFilename,
       message: 'Transcripción completada'
     }) + '\n');
 
@@ -593,6 +695,171 @@ app.delete('/api/chunks', async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Error eliminando carpetas: ' + error.message
+    });
+  }
+});
+
+// ========== ENDPOINTS DE GESTIÓN DE TRANSCRIPCIONES ==========
+
+// Listar transcripciones PDF
+app.get('/api/transcripciones', async (req, res) => {
+  try {
+    const transcripcionesDir = path.join(__dirname, 'transcripciones');
+
+    // Asegurar que el directorio existe
+    await fs.mkdir(transcripcionesDir, { recursive: true });
+
+    const files = await fs.readdir(transcripcionesDir);
+    const pdfFiles = files.filter(f => f.endsWith('.pdf'));
+
+    const fileDetails = await Promise.all(
+      pdfFiles.map(async (filename) => {
+        const filePath = path.join(transcripcionesDir, filename);
+        const stats = await fs.stat(filePath);
+
+        return {
+          name: filename,
+          size: stats.size,
+          sizeFormatted: formatBytes(stats.size),
+          createdAt: stats.birthtime,
+          modifiedAt: stats.mtime,
+          path: filePath
+        };
+      })
+    );
+
+    // Ordenar por fecha de modificación (más recientes primero)
+    fileDetails.sort((a, b) => b.modifiedAt - a.modifiedAt);
+
+    res.json({
+      success: true,
+      count: fileDetails.length,
+      files: fileDetails
+    });
+  } catch (error) {
+    console.error('Error listando transcripciones:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Error listando transcripciones: ' + error.message
+    });
+  }
+});
+
+// Descargar transcripción PDF
+app.get('/api/transcripciones/:filename', async (req, res) => {
+  try {
+    const filename = req.params.filename;
+
+    // Validar que el filename no contenga caracteres peligrosos y sea PDF
+    if (filename.includes('..') || filename.includes('/') || filename.includes('\\') || !filename.endsWith('.pdf')) {
+      return res.status(400).json({
+        success: false,
+        error: 'Nombre de archivo inválido'
+      });
+    }
+
+    const filePath = path.join(__dirname, 'transcripciones', filename);
+
+    // Verificar que el archivo existe
+    try {
+      await fs.access(filePath);
+    } catch {
+      return res.status(404).json({
+        success: false,
+        error: 'Archivo no encontrado'
+      });
+    }
+
+    // Enviar el archivo para descarga
+    res.download(filePath, filename, (err) => {
+      if (err) {
+        console.error('Error descargando transcripción:', err);
+        if (!res.headersSent) {
+          res.status(500).json({
+            success: false,
+            error: 'Error descargando archivo'
+          });
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Error en descarga de transcripción:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Error descargando archivo: ' + error.message
+    });
+  }
+});
+
+// Eliminar transcripción PDF
+app.delete('/api/transcripciones/:filename', async (req, res) => {
+  try {
+    const filename = req.params.filename;
+
+    // Validar que el filename no contenga caracteres peligrosos y sea PDF
+    if (filename.includes('..') || filename.includes('/') || filename.includes('\\') || !filename.endsWith('.pdf')) {
+      return res.status(400).json({
+        success: false,
+        error: 'Nombre de archivo inválido'
+      });
+    }
+
+    const filePath = path.join(__dirname, 'transcripciones', filename);
+
+    // Verificar que el archivo existe
+    try {
+      await fs.access(filePath);
+    } catch {
+      return res.status(404).json({
+        success: false,
+        error: 'Archivo no encontrado'
+      });
+    }
+
+    // Eliminar el archivo
+    await fs.unlink(filePath);
+
+    console.log(`Transcripción eliminada: ${filename}`);
+
+    res.json({
+      success: true,
+      message: `Transcripción ${filename} eliminada correctamente`
+    });
+  } catch (error) {
+    console.error('Error eliminando transcripción:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Error eliminando archivo: ' + error.message
+    });
+  }
+});
+
+// Eliminar todas las transcripciones
+app.delete('/api/transcripciones', async (req, res) => {
+  try {
+    const transcripcionesDir = path.join(__dirname, 'transcripciones');
+    const files = await fs.readdir(transcripcionesDir);
+    const pdfFiles = files.filter(f => f.endsWith('.pdf'));
+
+    let deletedCount = 0;
+    for (const file of pdfFiles) {
+      const filePath = path.join(transcripcionesDir, file);
+      await fs.unlink(filePath);
+      deletedCount++;
+    }
+
+    console.log(`${deletedCount} transcripciones eliminadas`);
+
+    res.json({
+      success: true,
+      message: `${deletedCount} transcripciones eliminadas correctamente`,
+      count: deletedCount
+    });
+  } catch (error) {
+    console.error('Error eliminando transcripciones:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Error eliminando transcripciones: ' + error.message
     });
   }
 });
