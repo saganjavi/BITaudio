@@ -4,415 +4,166 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Gestión de Archivos - Audio Splitter</title>
-  <link rel="stylesheet" href="styles.css">
-  <style>
-    .management-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 2rem;
-    }
-
-    .nav-links {
-      display: flex;
-      gap: 1rem;
-    }
-
-    .nav-links a {
-      color: var(--text-color);
-      text-decoration: none;
-      padding: 0.5rem 1rem;
-      border-radius: 8px;
-      background: rgba(255, 255, 255, 0.1);
-      transition: all 0.3s ease;
-    }
-
-    .nav-links a:hover {
-      background: rgba(255, 255, 255, 0.2);
-      transform: translateY(-2px);
-    }
-
-    .files-section {
-      background: rgba(255, 255, 255, 0.05);
-      padding: 2rem;
-      border-radius: 16px;
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-    }
-
-    .files-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 1.5rem;
-      padding-bottom: 1rem;
-      border-bottom: 2px solid rgba(255, 255, 255, 0.1);
-    }
-
-    .files-stats {
-      display: flex;
-      gap: 2rem;
-      margin-bottom: 1.5rem;
-    }
-
-    .stat-item {
-      flex: 1;
-      padding: 1rem;
-      background: rgba(255, 255, 255, 0.05);
-      border-radius: 8px;
-      text-align: center;
-    }
-
-    .stat-item .label {
-      font-size: 0.875rem;
-      color: rgba(255, 255, 255, 0.7);
-      margin-bottom: 0.5rem;
-    }
-
-    .stat-item .value {
-      font-size: 1.5rem;
-      font-weight: bold;
-      color: var(--primary-color);
-    }
-
-    .files-table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 1rem;
-    }
-
-    .files-table thead {
-      background: rgba(255, 255, 255, 0.1);
-    }
-
-    .files-table th {
-      padding: 1rem;
-      text-align: left;
-      font-weight: 600;
-      color: rgba(255, 255, 255, 0.9);
-      border-bottom: 2px solid rgba(255, 255, 255, 0.2);
-    }
-
-    .files-table td {
-      padding: 1rem;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-    }
-
-    .files-table tbody tr {
-      transition: background 0.2s ease;
-    }
-
-    .files-table tbody tr:hover {
-      background: rgba(255, 255, 255, 0.05);
-    }
-
-    .file-name {
-      font-weight: 500;
-      color: var(--text-color);
-      word-break: break-all;
-    }
-
-    .file-size {
-      color: rgba(255, 255, 255, 0.7);
-    }
-
-    .file-date {
-      color: rgba(255, 255, 255, 0.6);
-      font-size: 0.875rem;
-    }
-
-    .btn-delete {
-      background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-      color: white;
-      border: none;
-      padding: 0.5rem 1rem;
-      border-radius: 6px;
-      cursor: pointer;
-      font-size: 0.875rem;
-      transition: all 0.3s ease;
-    }
-
-    .btn-delete:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
-    }
-
-    .btn-delete:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-      transform: none;
-    }
-
-    .empty-state {
-      text-align: center;
-      padding: 3rem;
-      color: rgba(255, 255, 255, 0.6);
-    }
-
-    .empty-state svg {
-      width: 64px;
-      height: 64px;
-      margin: 0 auto 1rem;
-      opacity: 0.3;
-    }
-
-    .btn-refresh {
-      background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-    }
-
-    .btn-delete-all {
-      background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
-    }
-
-    .loading {
-      text-align: center;
-      padding: 2rem;
-      color: rgba(255, 255, 255, 0.7);
-    }
-
-    .spinner {
-      border: 3px solid rgba(255, 255, 255, 0.1);
-      border-radius: 50%;
-      border-top: 3px solid var(--primary-color);
-      width: 40px;
-      height: 40px;
-      animation: spin 1s linear infinite;
-      margin: 0 auto 1rem;
-    }
-
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
-
-    .action-buttons {
-      display: flex;
-      gap: 1rem;
-    }
-
-    .folder-row {
-      cursor: pointer;
-      position: relative;
-    }
-
-    .folder-row:hover {
-      background: rgba(255, 255, 255, 0.08) !important;
-    }
-
-    .folder-name {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-    }
-
-    .folder-icon {
-      font-size: 1.2rem;
-    }
-
-    .expand-icon {
-      font-size: 0.8rem;
-      transition: transform 0.3s ease;
-      display: inline-block;
-    }
-
-    .expand-icon.expanded {
-      transform: rotate(90deg);
-    }
-
-    .chunk-files-row {
-      display: none;
-      background: rgba(0, 0, 0, 0.2);
-    }
-
-    .chunk-files-row.visible {
-      display: table-row;
-    }
-
-    .chunk-files-cell {
-      padding: 1rem 2rem !important;
-    }
-
-    .chunk-files-list {
-      list-style: none;
-      padding: 0;
-      margin: 0;
-    }
-
-    .chunk-file-item {
-      padding: 0.75rem;
-      background: rgba(255, 255, 255, 0.05);
-      margin-bottom: 0.5rem;
-      border-radius: 6px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    .chunk-file-item:hover {
-      background: rgba(255, 255, 255, 0.08);
-    }
-
-    .chunk-file-info {
-      display: flex;
-      gap: 1rem;
-      align-items: center;
-      flex: 1;
-    }
-
-    .chunk-file-name {
-      color: rgba(255, 255, 255, 0.8);
-      font-family: monospace;
-    }
-
-    .chunk-file-size {
-      color: rgba(255, 255, 255, 0.5);
-      font-size: 0.875rem;
-    }
-
-    .btn-download {
-      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-      color: white;
-      border: none;
-      padding: 0.4rem 0.8rem;
-      border-radius: 6px;
-      cursor: pointer;
-      font-size: 0.875rem;
-      transition: all 0.3s ease;
-      text-decoration: none;
-      display: inline-block;
-    }
-
-    .btn-download:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
-    }
-
-    .chunk-loading {
-      text-align: center;
-      padding: 1rem;
-      color: rgba(255, 255, 255, 0.5);
-      font-style: italic;
-    }
-  </style>
+  <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body>
-  <div class="container">
-    <header>
-      <div class="management-header">
-        <div>
-          <h1>Gestión de Archivos</h1>
-          <p>Administra los archivos subidos al servidor</p>
+<body class="bg-white min-h-screen">
+  <!-- Navigation -->
+  <nav class="bg-gray-800 text-white shadow-lg">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex justify-between items-center h-16">
+        <!-- Logo -->
+        <div class="flex-shrink-0">
+          <h1 class="text-xl font-semibold">Audio Splitter</h1>
         </div>
-        <div class="nav-links">
-          <a href="/">← Volver al inicio</a>
+
+        <!-- Desktop Menu -->
+        <div class="hidden md:flex items-center space-x-4">
+          <a href="/" class="px-3 py-2 text-gray-300 hover:text-white transition-colors">Inicio</a>
+          <a href="/manage.html" class="px-3 py-2 text-gray-300 hover:text-white transition-colors">Gestión</a>
+        </div>
+
+        <!-- Mobile Menu Button -->
+        <div class="md:hidden">
+          <button id="mobileMenuBtn" class="p-2 rounded-md text-gray-300 hover:text-white hover:bg-gray-700 focus:outline-none">
+            <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          </button>
         </div>
       </div>
-    </header>
+    </div>
 
-    <main>
-      <section class="files-section">
-        <div class="files-header">
-          <h2>Archivos Subidos</h2>
-          <div class="action-buttons">
-            <button class="btn btn-secondary btn-refresh" id="refreshBtn">
-              🔄 Actualizar
-            </button>
-            <button class="btn btn-delete btn-delete-all" id="deleteAllBtn">
-              🗑️ Eliminar todos
-            </button>
-          </div>
+    <!-- Mobile Menu -->
+    <div id="mobileMenu" class="hidden md:hidden bg-gray-700">
+      <div class="px-2 pt-2 pb-3 space-y-1">
+        <a href="/" class="block px-3 py-2 rounded-md text-gray-300 hover:text-white hover:bg-gray-600 transition-colors">Inicio</a>
+        <a href="/manage.html" class="block px-3 py-2 rounded-md text-gray-300 hover:text-white hover:bg-gray-600 transition-colors">Gestión</a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <!-- Header -->
+    <div class="mb-8">
+      <h2 class="text-3xl font-bold text-gray-900 mb-2">Gestión de Archivos</h2>
+      <p class="text-gray-600">Administra tus archivos, chunks y transcripciones</p>
+    </div>
+
+    <!-- Archivos Subidos -->
+    <section class="bg-gray-50 rounded-lg shadow-sm p-6 mb-6">
+      <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3">
+        <h3 class="text-xl font-semibold text-gray-900">Archivos Subidos</h3>
+        <div class="flex gap-2">
+          <button id="refreshBtn" class="px-3 py-1.5 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 transition-colors">
+            🔄 Actualizar
+          </button>
+          <button id="deleteAllBtn" class="px-3 py-1.5 bg-red-600 text-white text-sm rounded-md hover:bg-red-700 transition-colors">
+            🗑️ Eliminar todos
+          </button>
         </div>
+      </div>
 
-        <div class="files-stats">
-          <div class="stat-item">
-            <div class="label">Total de archivos</div>
-            <div class="value" id="totalFiles">-</div>
-          </div>
-          <div class="stat-item">
-            <div class="label">Espacio utilizado</div>
-            <div class="value" id="totalSize">-</div>
-          </div>
+      <div class="grid grid-cols-2 gap-4 mb-4">
+        <div class="bg-white border border-gray-200 rounded-lg p-4">
+          <p class="text-xs text-gray-500 mb-1">Total de archivos</p>
+          <p id="totalFiles" class="text-2xl font-bold text-gray-900">-</p>
         </div>
-
-        <div id="filesContent">
-          <div class="loading">
-            <div class="spinner"></div>
-            <p>Cargando archivos...</p>
-          </div>
+        <div class="bg-white border border-gray-200 rounded-lg p-4">
+          <p class="text-xs text-gray-500 mb-1">Espacio utilizado</p>
+          <p id="totalSize" class="text-2xl font-bold text-gray-900">-</p>
         </div>
-      </section>
+      </div>
 
-      <!-- Sección de Chunks -->
-      <section class="files-section" style="margin-top: 2rem;">
-        <div class="files-header">
-          <h2>Carpetas de Chunks</h2>
-          <div class="action-buttons">
-            <button class="btn btn-secondary btn-refresh" id="refreshChunksBtn">
-              🔄 Actualizar
-            </button>
-            <button class="btn btn-delete btn-delete-all" id="deleteAllChunksBtn">
-              🗑️ Eliminar todos
-            </button>
-          </div>
+      <div id="filesContent" class="mt-4">
+        <div class="text-center py-8">
+          <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+          <p class="mt-2 text-gray-600">Cargando...</p>
         </div>
+      </div>
+    </section>
 
-        <div class="files-stats">
-          <div class="stat-item">
-            <div class="label">Total de carpetas</div>
-            <div class="value" id="totalChunkFolders">-</div>
-          </div>
-          <div class="stat-item">
-            <div class="label">Espacio utilizado</div>
-            <div class="value" id="totalChunksSize">-</div>
-          </div>
+    <!-- Carpetas de Chunks -->
+    <section class="bg-gray-50 rounded-lg shadow-sm p-6 mb-6">
+      <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3">
+        <h3 class="text-xl font-semibold text-gray-900">Carpetas de Chunks</h3>
+        <div class="flex gap-2">
+          <button id="refreshChunksBtn" class="px-3 py-1.5 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 transition-colors">
+            🔄 Actualizar
+          </button>
+          <button id="deleteAllChunksBtn" class="px-3 py-1.5 bg-red-600 text-white text-sm rounded-md hover:bg-red-700 transition-colors">
+            🗑️ Eliminar todos
+          </button>
         </div>
+      </div>
 
-        <div id="chunksContent">
-          <div class="loading">
-            <div class="spinner"></div>
-            <p>Cargando carpetas de chunks...</p>
-          </div>
+      <div class="grid grid-cols-2 gap-4 mb-4">
+        <div class="bg-white border border-gray-200 rounded-lg p-4">
+          <p class="text-xs text-gray-500 mb-1">Total de carpetas</p>
+          <p id="totalChunkFolders" class="text-2xl font-bold text-gray-900">-</p>
         </div>
-      </section>
-
-      <!-- Sección de Transcripciones -->
-      <section class="files-section" style="margin-top: 2rem;">
-        <div class="files-header">
-          <h2>Transcripciones PDF</h2>
-          <div class="action-buttons">
-            <button class="btn btn-secondary btn-refresh" id="refreshTranscripcionesBtn">
-              🔄 Actualizar
-            </button>
-            <button class="btn btn-delete btn-delete-all" id="deleteAllTranscripcionesBtn">
-              🗑️ Eliminar todos
-            </button>
-          </div>
+        <div class="bg-white border border-gray-200 rounded-lg p-4">
+          <p class="text-xs text-gray-500 mb-1">Espacio utilizado</p>
+          <p id="totalChunksSize" class="text-2xl font-bold text-gray-900">-</p>
         </div>
+      </div>
 
-        <div class="files-stats">
-          <div class="stat-item">
-            <div class="label">Total de transcripciones</div>
-            <div class="value" id="totalTranscripciones">-</div>
-          </div>
-          <div class="stat-item">
-            <div class="label">Espacio utilizado</div>
-            <div class="value" id="totalTranscripcionesSize">-</div>
-          </div>
+      <div id="chunksContent" class="mt-4">
+        <div class="text-center py-8">
+          <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+          <p class="mt-2 text-gray-600">Cargando...</p>
         </div>
+      </div>
+    </section>
 
-        <div id="transcripcionesContent">
-          <div class="loading">
-            <div class="spinner"></div>
-            <p>Cargando transcripciones...</p>
-          </div>
+    <!-- Transcripciones PDF -->
+    <section class="bg-gray-50 rounded-lg shadow-sm p-6 mb-6">
+      <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3">
+        <h3 class="text-xl font-semibold text-gray-900">Transcripciones PDF</h3>
+        <div class="flex gap-2">
+          <button id="refreshTranscripcionesBtn" class="px-3 py-1.5 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 transition-colors">
+            🔄 Actualizar
+          </button>
+          <button id="deleteAllTranscripcionesBtn" class="px-3 py-1.5 bg-red-600 text-white text-sm rounded-md hover:bg-red-700 transition-colors">
+            🗑️ Eliminar todos
+          </button>
         </div>
-      </section>
-    </main>
+      </div>
 
-    <footer>
-      <p>Audio Splitter v1.0 | Gestión de Archivos</p>
-    </footer>
+      <div class="grid grid-cols-2 gap-4 mb-4">
+        <div class="bg-white border border-gray-200 rounded-lg p-4">
+          <p class="text-xs text-gray-500 mb-1">Total de transcripciones</p>
+          <p id="totalTranscripciones" class="text-2xl font-bold text-gray-900">-</p>
+        </div>
+        <div class="bg-white border border-gray-200 rounded-lg p-4">
+          <p class="text-xs text-gray-500 mb-1">Espacio utilizado</p>
+          <p id="totalTranscripcionesSize" class="text-2xl font-bold text-gray-900">-</p>
+        </div>
+      </div>
+
+      <div id="transcripcionesContent" class="mt-4">
+        <div class="text-center py-8">
+          <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+          <p class="mt-2 text-gray-600">Cargando...</p>
+        </div>
+      </div>
+    </section>
   </div>
 
+  <!-- Footer -->
+  <footer class="bg-gray-800 text-gray-400 py-6 mt-12">
+    <div class="max-w-7xl mx-auto px-4 text-center">
+      <p class="text-sm">Audio Splitter v1.0 | Gestión de Archivos</p>
+    </div>
+  </footer>
+
+  <script>
+    // Mobile menu toggle
+    document.getElementById('mobileMenuBtn').addEventListener('click', () => {
+      const menu = document.getElementById('mobileMenu');
+      menu.classList.toggle('hidden');
+    });
+  </script>
   <script src="manage.js"></script>
 </body>
 </html>

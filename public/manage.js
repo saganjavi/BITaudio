@@ -38,7 +38,8 @@ loadFiles();
 loadChunkFolders();
 loadTranscripciones();
 
-// Función para cargar archivos desde el servidor
+// ========== FUNCIONES DE ARCHIVOS SUBIDOS ==========
+
 async function loadFiles() {
   try {
     showLoading();
@@ -65,33 +66,30 @@ async function loadFiles() {
   }
 }
 
-// Mostrar estado de carga
 function showLoading() {
   filesContent.innerHTML = `
-    <div class="loading">
-      <div class="spinner"></div>
-      <p>Cargando archivos...</p>
+    <div class="text-center py-8">
+      <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+      <p class="mt-2 text-gray-600">Cargando...</p>
     </div>
   `;
 }
 
-// Mostrar error
 function showError(message) {
   filesContent.innerHTML = `
-    <div class="empty-state">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+    <div class="text-center py-12">
+      <svg class="mx-auto h-12 w-12 text-gray-400 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <circle cx="12" cy="12" r="10"></circle>
         <line x1="12" y1="8" x2="12" y2="12"></line>
         <line x1="12" y1="16" x2="12.01" y2="16"></line>
       </svg>
-      <h3>Error</h3>
-      <p>${message}</p>
-      <button class="btn btn-primary" onclick="loadFiles()">Reintentar</button>
+      <h3 class="text-lg font-medium text-gray-900 mb-2">Error</h3>
+      <p class="text-gray-600 mb-4">${message}</p>
+      <button onclick="loadFiles()" class="px-4 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700">Reintentar</button>
     </div>
   `;
 }
 
-// Actualizar estadísticas
 function updateStats() {
   totalFilesEl.textContent = files.length;
 
@@ -99,52 +97,44 @@ function updateStats() {
   totalSizeEl.textContent = formatBytes(totalBytes);
 }
 
-// Renderizar tabla de archivos
 function renderFiles() {
   if (files.length === 0) {
     filesContent.innerHTML = `
-      <div class="empty-state">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-          <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path>
-          <polyline points="13 2 13 9 20 9"></polyline>
+      <div class="text-center py-12">
+        <svg class="mx-auto h-12 w-12 text-gray-400 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
         </svg>
-        <h3>No hay archivos</h3>
-        <p>No se encontraron archivos en el directorio de uploads.</p>
-        <a href="/" class="btn btn-primary">Subir un archivo</a>
+        <h3 class="text-lg font-medium text-gray-900 mb-2">No hay archivos</h3>
+        <p class="text-gray-600 mb-4">No se encontraron archivos en el directorio de uploads.</p>
+        <a href="/" class="px-4 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 inline-block">Subir un archivo</a>
       </div>
     `;
     return;
   }
 
   filesContent.innerHTML = `
-    <table class="files-table">
-      <thead>
-        <tr>
-          <th>Nombre del archivo</th>
-          <th>Tamaño</th>
-          <th>Fecha de subida</th>
-          <th>Acciones</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${files.map(file => `
-          <tr data-filename="${escapeHtml(file.name)}">
-            <td class="file-name">${escapeHtml(file.name)}</td>
-            <td class="file-size">${file.sizeFormatted}</td>
-            <td class="file-date">${formatDate(file.createdAt)}</td>
-            <td>
-              <button class="btn-delete" onclick="confirmDelete('${escapeHtml(file.name)}')">
-                🗑️ Eliminar
-              </button>
-            </td>
-          </tr>
-        `).join('')}
-      </tbody>
-    </table>
+    <div class="space-y-2">
+      ${files.map(file => `
+        <div class="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+          <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div class="flex-1 min-w-0">
+              <p class="text-sm font-medium text-gray-900 truncate">${escapeHtml(file.name)}</p>
+              <div class="flex items-center gap-4 mt-1 text-xs text-gray-500">
+                <span>${file.sizeFormatted}</span>
+                <span>•</span>
+                <span>${formatDate(file.createdAt)}</span>
+              </div>
+            </div>
+            <button onclick="confirmDelete('${escapeHtml(file.name).replace(/'/g, "\\'")}' )" class="px-3 py-1.5 bg-red-600 text-white text-sm rounded-md hover:bg-red-700 transition-colors whitespace-nowrap">
+              🗑️ Eliminar
+            </button>
+          </div>
+        </div>
+      `).join('')}
+    </div>
   `;
 }
 
-// Confirmar eliminación de un archivo
 async function confirmDelete(filename) {
   if (!confirm(`¿Estás seguro de que quieres eliminar el archivo "${filename}"?`)) {
     return;
@@ -153,17 +143,8 @@ async function confirmDelete(filename) {
   await deleteFile(filename);
 }
 
-// Eliminar un archivo específico
 async function deleteFile(filename) {
   try {
-    // Deshabilitar botón de eliminación
-    const row = document.querySelector(`tr[data-filename="${filename}"]`);
-    if (row) {
-      const btn = row.querySelector('.btn-delete');
-      btn.disabled = true;
-      btn.textContent = '⏳ Eliminando...';
-    }
-
     const response = await fetch(`/api/uploads/${encodeURIComponent(filename)}`, {
       method: 'DELETE'
     });
@@ -174,28 +155,15 @@ async function deleteFile(filename) {
       throw new Error(data.error || 'Error eliminando archivo');
     }
 
-    console.log('Archivo eliminado:', filename);
-
-    // Recargar lista de archivos
     await loadFiles();
-
     showNotification(`Archivo "${filename}" eliminado correctamente`, 'success');
 
   } catch (error) {
     console.error('Error eliminando archivo:', error);
     showNotification('Error al eliminar el archivo: ' + error.message, 'error');
-
-    // Rehabilitar botón si falla
-    const row = document.querySelector(`tr[data-filename="${filename}"]`);
-    if (row) {
-      const btn = row.querySelector('.btn-delete');
-      btn.disabled = false;
-      btn.textContent = '🗑️ Eliminar';
-    }
   }
 }
 
-// Confirmar eliminación de todos los archivos
 async function confirmDeleteAll() {
   if (files.length === 0) {
     showNotification('No hay archivos para eliminar', 'info');
@@ -203,18 +171,14 @@ async function confirmDeleteAll() {
   }
 
   const confirmed = confirm(
-    `¿Estás seguro de que quieres eliminar TODOS los archivos (${files.length} archivos)?\n\n` +
-    'Esta acción no se puede deshacer.'
+    `¿Estás seguro de que quieres eliminar TODOS los archivos (${files.length} archivos)?\n\nEsta acción no se puede deshacer.`
   );
 
-  if (!confirmed) {
-    return;
-  }
+  if (!confirmed) return;
 
   await deleteAllFiles();
 }
 
-// Eliminar todos los archivos
 async function deleteAllFiles() {
   try {
     deleteAllBtn.disabled = true;
@@ -230,11 +194,7 @@ async function deleteAllFiles() {
       throw new Error(data.error || 'Error eliminando archivos');
     }
 
-    console.log('Archivos eliminados:', data.count);
-
-    // Recargar lista de archivos
     await loadFiles();
-
     showNotification(`${data.count} archivos eliminados correctamente`, 'success');
 
   } catch (error) {
@@ -246,7 +206,425 @@ async function deleteAllFiles() {
   }
 }
 
-// Formatear bytes a tamaño legible
+// ========== FUNCIONES DE CHUNKS ==========
+
+async function loadChunkFolders() {
+  try {
+    showChunksLoading();
+
+    const response = await fetch('/api/chunks');
+
+    if (!response.ok) {
+      throw new Error(`Error HTTP: ${response.status}`);
+    }
+
+    const data = await response.json();
+
+    if (!data.success) {
+      throw new Error(data.error || 'Error desconocido');
+    }
+
+    chunkFolders = data.folders;
+    updateChunksStats();
+    renderChunkFolders();
+
+  } catch (error) {
+    console.error('Error cargando carpetas de chunks:', error);
+    showChunksError('Error al cargar las carpetas: ' + error.message);
+  }
+}
+
+function showChunksLoading() {
+  chunksContent.innerHTML = `
+    <div class="text-center py-8">
+      <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+      <p class="mt-2 text-gray-600">Cargando...</p>
+    </div>
+  `;
+}
+
+function showChunksError(message) {
+  chunksContent.innerHTML = `
+    <div class="text-center py-12">
+      <svg class="mx-auto h-12 w-12 text-gray-400 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <circle cx="12" cy="12" r="10"></circle>
+        <line x1="12" y1="8" x2="12" y2="12"></line>
+        <line x1="12" y1="16" x2="12.01" y2="16"></line>
+      </svg>
+      <h3 class="text-lg font-medium text-gray-900 mb-2">Error</h3>
+      <p class="text-gray-600 mb-4">${message}</p>
+      <button onclick="loadChunkFolders()" class="px-4 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700">Reintentar</button>
+    </div>
+  `;
+}
+
+function updateChunksStats() {
+  totalChunkFoldersEl.textContent = chunkFolders.length;
+
+  const totalBytes = chunkFolders.reduce((sum, folder) => sum + folder.totalSize, 0);
+  totalChunksSizeEl.textContent = formatBytes(totalBytes);
+}
+
+function renderChunkFolders() {
+  if (chunkFolders.length === 0) {
+    chunksContent.innerHTML = `
+      <div class="text-center py-12">
+        <svg class="mx-auto h-12 w-12 text-gray-400 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-6l-2-2H5a2 2 0 0 0-2 2z" />
+        </svg>
+        <h3 class="text-lg font-medium text-gray-900 mb-2">No hay carpetas de chunks</h3>
+        <p class="text-gray-600">No se encontraron carpetas de chunks en el servidor.</p>
+      </div>
+    `;
+    return;
+  }
+
+  chunksContent.innerHTML = `
+    <div class="space-y-2">
+      ${chunkFolders.map((folder, index) => `
+        <div class="bg-white border border-gray-200 rounded-lg overflow-hidden">
+          <div class="p-4 cursor-pointer hover:bg-gray-50 transition-colors" onclick="toggleFolder('${escapeHtml(folder.name).replace(/'/g, "\\'")}')">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div class="flex-1 min-w-0 flex items-center gap-3">
+                <span class="transform transition-transform ${expandedFolders.has(folder.name) ? 'rotate-90' : ''} text-gray-400">▶</span>
+                <div class="flex-1">
+                  <p class="text-sm font-medium text-gray-900">📁 ${escapeHtml(folder.name)}</p>
+                  <div class="flex items-center gap-4 mt-1 text-xs text-gray-500">
+                    <span>${folder.chunkCount} archivos</span>
+                    <span>•</span>
+                    <span>${folder.totalSizeFormatted}</span>
+                    <span>•</span>
+                    <span>${formatDate(folder.createdAt)}</span>
+                  </div>
+                </div>
+              </div>
+              <button onclick="event.stopPropagation(); confirmDeleteChunkFolder('${escapeHtml(folder.name).replace(/'/g, "\\'")}')" class="px-3 py-1.5 bg-red-600 text-white text-sm rounded-md hover:bg-red-700 transition-colors whitespace-nowrap">
+                🗑️ Eliminar
+              </button>
+            </div>
+          </div>
+          <div id="files-${folder.name}" class="border-t border-gray-200 bg-gray-50 p-4 ${expandedFolders.has(folder.name) ? '' : 'hidden'}">
+            <div class="text-sm text-gray-500">⏳ Cargando archivos...</div>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+
+  // Cargar archivos de carpetas expandidas
+  expandedFolders.forEach(folderName => {
+    loadChunkFiles(folderName);
+  });
+}
+
+async function toggleFolder(folderName) {
+  if (expandedFolders.has(folderName)) {
+    expandedFolders.delete(folderName);
+  } else {
+    expandedFolders.add(folderName);
+    await loadChunkFiles(folderName);
+  }
+  renderChunkFolders();
+}
+
+async function loadChunkFiles(folderName) {
+  const filesDiv = document.getElementById(`files-${folderName}`);
+  if (!filesDiv) return;
+
+  filesDiv.innerHTML = '<div class="text-sm text-gray-500">⏳ Cargando archivos...</div>';
+
+  try {
+    const response = await fetch(`/api/chunks/${encodeURIComponent(folderName)}`);
+
+    if (!response.ok) {
+      throw new Error(`Error HTTP: ${response.status}`);
+    }
+
+    const data = await response.json();
+
+    if (!data.success) {
+      throw new Error(data.error || 'Error desconocido');
+    }
+
+    if (data.files.length === 0) {
+      filesDiv.innerHTML = '<div class="text-sm text-gray-500">Esta carpeta está vacía</div>';
+      return;
+    }
+
+    filesDiv.innerHTML = `
+      <div class="space-y-2">
+        ${data.files.map(file => `
+          <div class="flex items-center justify-between bg-white rounded-md p-3 border border-gray-200">
+            <div class="flex-1 min-w-0">
+              <p class="text-xs font-mono text-gray-900 truncate">🎵 ${escapeHtml(file.name)}</p>
+              <p class="text-xs text-gray-500">${file.sizeFormatted}</p>
+            </div>
+            <a href="/api/chunks/${encodeURIComponent(folderName)}/${encodeURIComponent(file.name)}"
+               download="${escapeHtml(file.name)}"
+               class="px-3 py-1.5 bg-green-600 text-white text-xs rounded-md hover:bg-green-700 transition-colors whitespace-nowrap ml-3">
+              ⬇️ Descargar
+            </a>
+          </div>
+        `).join('')}
+      </div>
+    `;
+
+  } catch (error) {
+    console.error('Error cargando archivos de chunks:', error);
+    filesDiv.innerHTML = `<div class="text-sm text-red-600">Error: ${error.message}</div>`;
+  }
+}
+
+async function confirmDeleteChunkFolder(folderName) {
+  if (!confirm(`¿Estás seguro de que quieres eliminar la carpeta "${folderName}" y todos sus archivos?`)) {
+    return;
+  }
+
+  await deleteChunkFolder(folderName);
+}
+
+async function deleteChunkFolder(folderName) {
+  try {
+    const response = await fetch(`/api/chunks/${encodeURIComponent(folderName)}`, {
+      method: 'DELETE'
+    });
+
+    const data = await response.json();
+
+    if (!data.success) {
+      throw new Error(data.error || 'Error eliminando carpeta');
+    }
+
+    expandedFolders.delete(folderName);
+    await loadChunkFolders();
+    showNotification(`Carpeta "${folderName}" eliminada correctamente`, 'success');
+
+  } catch (error) {
+    console.error('Error eliminando carpeta:', error);
+    showNotification('Error al eliminar la carpeta: ' + error.message, 'error');
+  }
+}
+
+async function confirmDeleteAllChunks() {
+  if (chunkFolders.length === 0) {
+    showNotification('No hay carpetas para eliminar', 'info');
+    return;
+  }
+
+  const confirmed = confirm(
+    `¿Estás seguro de que quieres eliminar TODAS las carpetas de chunks (${chunkFolders.length} carpetas)?\n\nEsta acción no se puede deshacer.`
+  );
+
+  if (!confirmed) return;
+
+  await deleteAllChunkFolders();
+}
+
+async function deleteAllChunkFolders() {
+  try {
+    deleteAllChunksBtn.disabled = true;
+    deleteAllChunksBtn.textContent = '⏳ Eliminando...';
+
+    const response = await fetch('/api/chunks', {
+      method: 'DELETE'
+    });
+
+    const data = await response.json();
+
+    if (!data.success) {
+      throw new Error(data.error || 'Error eliminando carpetas');
+    }
+
+    expandedFolders.clear();
+    await loadChunkFolders();
+    showNotification(`${data.count} carpetas eliminadas correctamente`, 'success');
+
+  } catch (error) {
+    console.error('Error eliminando carpetas:', error);
+    showNotification('Error al eliminar las carpetas: ' + error.message, 'error');
+  } finally {
+    deleteAllChunksBtn.disabled = false;
+    deleteAllChunksBtn.textContent = '🗑️ Eliminar todos';
+  }
+}
+
+// ========== FUNCIONES DE TRANSCRIPCIONES ==========
+
+async function loadTranscripciones() {
+  try {
+    showTranscripcionesLoading();
+
+    const response = await fetch('/api/transcripciones');
+
+    if (!response.ok) {
+      throw new Error(`Error HTTP: ${response.status}`);
+    }
+
+    const data = await response.json();
+
+    if (!data.success) {
+      throw new Error(data.error || 'Error desconocido');
+    }
+
+    transcripciones = data.files;
+    updateTranscripcionesStats();
+    renderTranscripciones();
+
+  } catch (error) {
+    console.error('Error cargando transcripciones:', error);
+    showTranscripcionesError('Error al cargar las transcripciones: ' + error.message);
+  }
+}
+
+function showTranscripcionesLoading() {
+  transcripcionesContent.innerHTML = `
+    <div class="text-center py-8">
+      <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+      <p class="mt-2 text-gray-600">Cargando...</p>
+    </div>
+  `;
+}
+
+function showTranscripcionesError(message) {
+  transcripcionesContent.innerHTML = `
+    <div class="text-center py-12">
+      <svg class="mx-auto h-12 w-12 text-gray-400 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <circle cx="12" cy="12" r="10"></circle>
+        <line x1="12" y1="8" x2="12" y2="12"></line>
+        <line x1="12" y1="16" x2="12.01" y2="16"></line>
+      </svg>
+      <h3 class="text-lg font-medium text-gray-900 mb-2">Error</h3>
+      <p class="text-gray-600 mb-4">${message}</p>
+      <button onclick="loadTranscripciones()" class="px-4 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700">Reintentar</button>
+    </div>
+  `;
+}
+
+function updateTranscripcionesStats() {
+  totalTranscripcionesEl.textContent = transcripciones.length;
+
+  const totalBytes = transcripciones.reduce((sum, file) => sum + file.size, 0);
+  totalTranscripcionesSizeEl.textContent = formatBytes(totalBytes);
+}
+
+function renderTranscripciones() {
+  if (transcripciones.length === 0) {
+    transcripcionesContent.innerHTML = `
+      <div class="text-center py-12">
+        <svg class="mx-auto h-12 w-12 text-gray-400 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+        </svg>
+        <h3 class="text-lg font-medium text-gray-900 mb-2">No hay transcripciones</h3>
+        <p class="text-gray-600 mb-4">No se encontraron transcripciones PDF en el servidor.</p>
+        <a href="/" class="px-4 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 inline-block">Crear transcripción</a>
+      </div>
+    `;
+    return;
+  }
+
+  transcripcionesContent.innerHTML = `
+    <div class="space-y-2">
+      ${transcripciones.map(file => `
+        <div class="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+          <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div class="flex-1 min-w-0">
+              <p class="text-sm font-medium text-gray-900 truncate">📄 ${escapeHtml(file.name)}</p>
+              <div class="flex items-center gap-4 mt-1 text-xs text-gray-500">
+                <span>${file.sizeFormatted}</span>
+                <span>•</span>
+                <span>${formatDate(file.createdAt)}</span>
+              </div>
+            </div>
+            <div class="flex gap-2">
+              <a href="/api/transcripciones/${encodeURIComponent(file.name)}"
+                 download="${escapeHtml(file.name)}"
+                 class="px-3 py-1.5 bg-green-600 text-white text-sm rounded-md hover:bg-green-700 transition-colors whitespace-nowrap">
+                ⬇️ Descargar
+              </a>
+              <button onclick="confirmDeleteTranscripcion('${escapeHtml(file.name).replace(/'/g, "\\'")}')" class="px-3 py-1.5 bg-red-600 text-white text-sm rounded-md hover:bg-red-700 transition-colors whitespace-nowrap">
+                🗑️ Eliminar
+              </button>
+            </div>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+async function confirmDeleteTranscripcion(filename) {
+  if (!confirm(`¿Estás seguro de que quieres eliminar la transcripción "${filename}"?`)) {
+    return;
+  }
+
+  await deleteTranscripcion(filename);
+}
+
+async function deleteTranscripcion(filename) {
+  try {
+    const response = await fetch(`/api/transcripciones/${encodeURIComponent(filename)}`, {
+      method: 'DELETE'
+    });
+
+    const data = await response.json();
+
+    if (!data.success) {
+      throw new Error(data.error || 'Error eliminando transcripción');
+    }
+
+    await loadTranscripciones();
+    showNotification(`Transcripción "${filename}" eliminada correctamente`, 'success');
+
+  } catch (error) {
+    console.error('Error eliminando transcripción:', error);
+    showNotification('Error al eliminar la transcripción: ' + error.message, 'error');
+  }
+}
+
+async function confirmDeleteAllTranscripciones() {
+  if (transcripciones.length === 0) {
+    showNotification('No hay transcripciones para eliminar', 'info');
+    return;
+  }
+
+  const confirmed = confirm(
+    `¿Estás seguro de que quieres eliminar TODAS las transcripciones (${transcripciones.length} archivos)?\n\nEsta acción no se puede deshacer.`
+  );
+
+  if (!confirmed) return;
+
+  await deleteAllTranscripciones();
+}
+
+async function deleteAllTranscripciones() {
+  try {
+    deleteAllTranscripcionesBtn.disabled = true;
+    deleteAllTranscripcionesBtn.textContent = '⏳ Eliminando...';
+
+    const response = await fetch('/api/transcripciones', {
+      method: 'DELETE'
+    });
+
+    const data = await response.json();
+
+    if (!data.success) {
+      throw new Error(data.error || 'Error eliminando transcripciones');
+    }
+
+    await loadTranscripciones();
+    showNotification(`${data.count} transcripciones eliminadas correctamente`, 'success');
+
+  } catch (error) {
+    console.error('Error eliminando transcripciones:', error);
+    showNotification('Error al eliminar las transcripciones: ' + error.message, 'error');
+  } finally {
+    deleteAllTranscripcionesBtn.disabled = false;
+    deleteAllTranscripcionesBtn.textContent = '🗑️ Eliminar todos';
+  }
+}
+
+// ========== UTILIDADES ==========
+
 function formatBytes(bytes, decimals = 2) {
   if (bytes === 0) return '0 Bytes';
 
@@ -259,7 +637,6 @@ function formatBytes(bytes, decimals = 2) {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
 }
 
-// Formatear fecha
 function formatDate(dateString) {
   const date = new Date(dateString);
   const now = new Date();
@@ -288,7 +665,6 @@ function formatDate(dateString) {
   }
 }
 
-// Escapar HTML para prevenir XSS
 function escapeHtml(text) {
   const map = {
     '&': '&amp;',
@@ -300,535 +676,27 @@ function escapeHtml(text) {
   return text.replace(/[&<>"']/g, m => map[m]);
 }
 
-// Mostrar notificación
 function showNotification(message, type = 'info') {
-  // Crear elemento de notificación
+  const bgColor = type === 'success' ? 'bg-green-600' : type === 'error' ? 'bg-red-600' : 'bg-blue-600';
+
   const notification = document.createElement('div');
-  notification.className = `notification notification-${type}`;
+  notification.className = `fixed top-4 right-4 ${bgColor} text-white px-6 py-3 rounded-lg shadow-lg z-50 animate-slide-in`;
   notification.textContent = message;
-  notification.style.cssText = `
-    position: fixed;
-    top: 20px;
-    right: 20px;
-    padding: 1rem 1.5rem;
-    border-radius: 8px;
-    background: ${type === 'success' ? '#10b981' : type === 'error' ? '#ef4444' : '#3b82f6'};
-    color: white;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-    z-index: 1000;
-    animation: slideIn 0.3s ease;
-  `;
 
   document.body.appendChild(notification);
 
-  // Eliminar después de 3 segundos
   setTimeout(() => {
-    notification.style.animation = 'slideOut 0.3s ease';
+    notification.classList.add('animate-slide-out');
     setTimeout(() => {
       document.body.removeChild(notification);
     }, 300);
   }, 3000);
 }
 
-// ========== FUNCIONES DE CHUNKS ==========
-
-// Cargar carpetas de chunks
-async function loadChunkFolders() {
-  try {
-    showChunksLoading();
-
-    const response = await fetch('/api/chunks');
-
-    if (!response.ok) {
-      throw new Error(`Error HTTP: ${response.status}`);
-    }
-
-    const data = await response.json();
-
-    if (!data.success) {
-      throw new Error(data.error || 'Error desconocido');
-    }
-
-    chunkFolders = data.folders;
-    updateChunksStats();
-    renderChunkFolders();
-
-  } catch (error) {
-    console.error('Error cargando carpetas de chunks:', error);
-    showChunksError('Error al cargar las carpetas: ' + error.message);
-  }
-}
-
-// Mostrar estado de carga de chunks
-function showChunksLoading() {
-  chunksContent.innerHTML = `
-    <div class="loading">
-      <div class="spinner"></div>
-      <p>Cargando carpetas de chunks...</p>
-    </div>
-  `;
-}
-
-// Mostrar error de chunks
-function showChunksError(message) {
-  chunksContent.innerHTML = `
-    <div class="empty-state">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-        <circle cx="12" cy="12" r="10"></circle>
-        <line x1="12" y1="8" x2="12" y2="12"></line>
-        <line x1="12" y1="16" x2="12.01" y2="16"></line>
-      </svg>
-      <h3>Error</h3>
-      <p>${message}</p>
-      <button class="btn btn-primary" onclick="loadChunkFolders()">Reintentar</button>
-    </div>
-  `;
-}
-
-// Actualizar estadísticas de chunks
-function updateChunksStats() {
-  totalChunkFoldersEl.textContent = chunkFolders.length;
-
-  const totalBytes = chunkFolders.reduce((sum, folder) => sum + folder.totalSize, 0);
-  totalChunksSizeEl.textContent = formatBytes(totalBytes);
-}
-
-// Renderizar tabla de carpetas de chunks
-function renderChunkFolders() {
-  if (chunkFolders.length === 0) {
-    chunksContent.innerHTML = `
-      <div class="empty-state">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-          <path d="M3 7v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-6l-2-2H5a2 2 0 0 0-2 2z"></path>
-        </svg>
-        <h3>No hay carpetas de chunks</h3>
-        <p>No se encontraron carpetas de chunks en el servidor.</p>
-      </div>
-    `;
-    return;
-  }
-
-  chunksContent.innerHTML = `
-    <table class="files-table">
-      <thead>
-        <tr>
-          <th>Carpeta</th>
-          <th>Chunks</th>
-          <th>Tamaño</th>
-          <th>Fecha de creación</th>
-          <th>Acciones</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${chunkFolders.map((folder, index) => `
-          <tr class="folder-row" data-folder="${escapeHtml(folder.name)}" onclick="toggleFolder('${escapeHtml(folder.name)}')">
-            <td class="file-name">
-              <div class="folder-name">
-                <span class="expand-icon ${expandedFolders.has(folder.name) ? 'expanded' : ''}" id="expand-${index}">▶</span>
-                <span class="folder-icon">📁</span>
-                <span>${escapeHtml(folder.name)}</span>
-              </div>
-            </td>
-            <td class="file-size">${folder.chunkCount} archivos</td>
-            <td class="file-size">${folder.totalSizeFormatted}</td>
-            <td class="file-date">${formatDate(folder.createdAt)}</td>
-            <td onclick="event.stopPropagation();">
-              <button class="btn-delete" onclick="confirmDeleteChunkFolder('${escapeHtml(folder.name)}')">
-                🗑️ Eliminar
-              </button>
-            </td>
-          </tr>
-          <tr class="chunk-files-row ${expandedFolders.has(folder.name) ? 'visible' : ''}" id="files-${escapeHtml(folder.name)}">
-            <td colspan="5" class="chunk-files-cell">
-              <div class="chunk-loading">⏳ Cargando archivos...</div>
-            </td>
-          </tr>
-        `).join('')}
-      </tbody>
-    </table>
-  `;
-
-  // Cargar archivos de carpetas expandidas
-  expandedFolders.forEach(folderName => {
-    loadChunkFiles(folderName);
-  });
-}
-
-// Alternar expansión de carpeta
-async function toggleFolder(folderName) {
-  if (expandedFolders.has(folderName)) {
-    expandedFolders.delete(folderName);
-  } else {
-    expandedFolders.add(folderName);
-    await loadChunkFiles(folderName);
-  }
-  renderChunkFolders();
-}
-
-// Cargar archivos de una carpeta de chunks
-async function loadChunkFiles(folderName) {
-  const filesRow = document.getElementById(`files-${folderName}`);
-  if (!filesRow) return;
-
-  const cell = filesRow.querySelector('.chunk-files-cell');
-  cell.innerHTML = '<div class="chunk-loading">⏳ Cargando archivos...</div>';
-
-  try {
-    const response = await fetch(`/api/chunks/${encodeURIComponent(folderName)}`);
-
-    if (!response.ok) {
-      throw new Error(`Error HTTP: ${response.status}`);
-    }
-
-    const data = await response.json();
-
-    if (!data.success) {
-      throw new Error(data.error || 'Error desconocido');
-    }
-
-    if (data.files.length === 0) {
-      cell.innerHTML = '<div class="chunk-loading">Esta carpeta está vacía</div>';
-      return;
-    }
-
-    // Renderizar lista de archivos
-    cell.innerHTML = `
-      <ul class="chunk-files-list">
-        ${data.files.map(file => `
-          <li class="chunk-file-item">
-            <div class="chunk-file-info">
-              <span class="chunk-file-name">🎵 ${escapeHtml(file.name)}</span>
-              <span class="chunk-file-size">${file.sizeFormatted}</span>
-            </div>
-            <a href="/api/chunks/${encodeURIComponent(folderName)}/${encodeURIComponent(file.name)}"
-               class="btn-download"
-               download="${escapeHtml(file.name)}">
-              ⬇️ Descargar
-            </a>
-          </li>
-        `).join('')}
-      </ul>
-    `;
-
-  } catch (error) {
-    console.error('Error cargando archivos de chunks:', error);
-    cell.innerHTML = `<div class="chunk-loading" style="color: #ef4444;">Error: ${error.message}</div>`;
-  }
-}
-
-// Confirmar eliminación de carpeta de chunks
-async function confirmDeleteChunkFolder(folderName) {
-  if (!confirm(`¿Estás seguro de que quieres eliminar la carpeta "${folderName}" y todos sus archivos?`)) {
-    return;
-  }
-
-  await deleteChunkFolder(folderName);
-}
-
-// Eliminar carpeta de chunks
-async function deleteChunkFolder(folderName) {
-  try {
-    const response = await fetch(`/api/chunks/${encodeURIComponent(folderName)}`, {
-      method: 'DELETE'
-    });
-
-    const data = await response.json();
-
-    if (!data.success) {
-      throw new Error(data.error || 'Error eliminando carpeta');
-    }
-
-    console.log('Carpeta eliminada:', folderName);
-
-    // Remover de expandidos si estaba
-    expandedFolders.delete(folderName);
-
-    // Recargar lista de carpetas
-    await loadChunkFolders();
-
-    showNotification(`Carpeta "${folderName}" eliminada correctamente`, 'success');
-
-  } catch (error) {
-    console.error('Error eliminando carpeta:', error);
-    showNotification('Error al eliminar la carpeta: ' + error.message, 'error');
-  }
-}
-
-// Confirmar eliminación de todas las carpetas de chunks
-async function confirmDeleteAllChunks() {
-  if (chunkFolders.length === 0) {
-    showNotification('No hay carpetas para eliminar', 'info');
-    return;
-  }
-
-  const confirmed = confirm(
-    `¿Estás seguro de que quieres eliminar TODAS las carpetas de chunks (${chunkFolders.length} carpetas)?\n\n` +
-    'Esta acción no se puede deshacer.'
-  );
-
-  if (!confirmed) {
-    return;
-  }
-
-  await deleteAllChunkFolders();
-}
-
-// Eliminar todas las carpetas de chunks
-async function deleteAllChunkFolders() {
-  try {
-    deleteAllChunksBtn.disabled = true;
-    deleteAllChunksBtn.textContent = '⏳ Eliminando...';
-
-    const response = await fetch('/api/chunks', {
-      method: 'DELETE'
-    });
-
-    const data = await response.json();
-
-    if (!data.success) {
-      throw new Error(data.error || 'Error eliminando carpetas');
-    }
-
-    console.log('Carpetas eliminadas:', data.count);
-
-    // Limpiar expandidos
-    expandedFolders.clear();
-
-    // Recargar lista de carpetas
-    await loadChunkFolders();
-
-    showNotification(`${data.count} carpetas eliminadas correctamente`, 'success');
-
-  } catch (error) {
-    console.error('Error eliminando carpetas:', error);
-    showNotification('Error al eliminar las carpetas: ' + error.message, 'error');
-  } finally {
-    deleteAllChunksBtn.disabled = false;
-    deleteAllChunksBtn.textContent = '🗑️ Eliminar todos';
-  }
-}
-
-// ========== FUNCIONES DE TRANSCRIPCIONES ==========
-
-// Cargar transcripciones PDF
-async function loadTranscripciones() {
-  try {
-    showTranscripcionesLoading();
-
-    const response = await fetch('/api/transcripciones');
-
-    if (!response.ok) {
-      throw new Error(`Error HTTP: ${response.status}`);
-    }
-
-    const data = await response.json();
-
-    if (!data.success) {
-      throw new Error(data.error || 'Error desconocido');
-    }
-
-    transcripciones = data.files;
-    updateTranscripcionesStats();
-    renderTranscripciones();
-
-  } catch (error) {
-    console.error('Error cargando transcripciones:', error);
-    showTranscripcionesError('Error al cargar las transcripciones: ' + error.message);
-  }
-}
-
-// Mostrar estado de carga de transcripciones
-function showTranscripcionesLoading() {
-  transcripcionesContent.innerHTML = `
-    <div class="loading">
-      <div class="spinner"></div>
-      <p>Cargando transcripciones...</p>
-    </div>
-  `;
-}
-
-// Mostrar error de transcripciones
-function showTranscripcionesError(message) {
-  transcripcionesContent.innerHTML = `
-    <div class="empty-state">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-        <circle cx="12" cy="12" r="10"></circle>
-        <line x1="12" y1="8" x2="12" y2="12"></line>
-        <line x1="12" y1="16" x2="12.01" y2="16"></line>
-      </svg>
-      <h3>Error</h3>
-      <p>${message}</p>
-      <button class="btn btn-primary" onclick="loadTranscripciones()">Reintentar</button>
-    </div>
-  `;
-}
-
-// Actualizar estadísticas de transcripciones
-function updateTranscripcionesStats() {
-  totalTranscripcionesEl.textContent = transcripciones.length;
-
-  const totalBytes = transcripciones.reduce((sum, file) => sum + file.size, 0);
-  totalTranscripcionesSizeEl.textContent = formatBytes(totalBytes);
-}
-
-// Renderizar tabla de transcripciones
-function renderTranscripciones() {
-  if (transcripciones.length === 0) {
-    transcripcionesContent.innerHTML = `
-      <div class="empty-state">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-          <polyline points="14 2 14 8 20 8"></polyline>
-          <line x1="16" y1="13" x2="8" y2="13"></line>
-          <line x1="16" y1="17" x2="8" y2="17"></line>
-          <polyline points="10 9 9 9 8 9"></polyline>
-        </svg>
-        <h3>No hay transcripciones</h3>
-        <p>No se encontraron transcripciones PDF en el servidor.</p>
-        <a href="/" class="btn btn-primary">Crear transcripción</a>
-      </div>
-    `;
-    return;
-  }
-
-  transcripcionesContent.innerHTML = `
-    <table class="files-table">
-      <thead>
-        <tr>
-          <th>Nombre del archivo</th>
-          <th>Tamaño</th>
-          <th>Fecha de creación</th>
-          <th>Acciones</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${transcripciones.map(file => `
-          <tr data-filename="${escapeHtml(file.name)}">
-            <td class="file-name">📄 ${escapeHtml(file.name)}</td>
-            <td class="file-size">${file.sizeFormatted}</td>
-            <td class="file-date">${formatDate(file.createdAt)}</td>
-            <td>
-              <a href="/api/transcripciones/${encodeURIComponent(file.name)}"
-                 class="btn-download"
-                 download="${escapeHtml(file.name)}"
-                 style="margin-right: 0.5rem;">
-                ⬇️ Descargar
-              </a>
-              <button class="btn-delete" onclick="confirmDeleteTranscripcion('${escapeHtml(file.name)}')">
-                🗑️ Eliminar
-              </button>
-            </td>
-          </tr>
-        `).join('')}
-      </tbody>
-    </table>
-  `;
-}
-
-// Confirmar eliminación de transcripción
-async function confirmDeleteTranscripcion(filename) {
-  if (!confirm(`¿Estás seguro de que quieres eliminar la transcripción "${filename}"?`)) {
-    return;
-  }
-
-  await deleteTranscripcion(filename);
-}
-
-// Eliminar transcripción
-async function deleteTranscripcion(filename) {
-  try {
-    const row = document.querySelector(`tr[data-filename="${filename}"]`);
-    if (row) {
-      const btn = row.querySelector('.btn-delete');
-      btn.disabled = true;
-      btn.textContent = '⏳ Eliminando...';
-    }
-
-    const response = await fetch(`/api/transcripciones/${encodeURIComponent(filename)}`, {
-      method: 'DELETE'
-    });
-
-    const data = await response.json();
-
-    if (!data.success) {
-      throw new Error(data.error || 'Error eliminando transcripción');
-    }
-
-    console.log('Transcripción eliminada:', filename);
-
-    // Recargar lista
-    await loadTranscripciones();
-
-    showNotification(`Transcripción "${filename}" eliminada correctamente`, 'success');
-
-  } catch (error) {
-    console.error('Error eliminando transcripción:', error);
-    showNotification('Error al eliminar la transcripción: ' + error.message, 'error');
-
-    const row = document.querySelector(`tr[data-filename="${filename}"]`);
-    if (row) {
-      const btn = row.querySelector('.btn-delete');
-      btn.disabled = false;
-      btn.textContent = '🗑️ Eliminar';
-    }
-  }
-}
-
-// Confirmar eliminación de todas las transcripciones
-async function confirmDeleteAllTranscripciones() {
-  if (transcripciones.length === 0) {
-    showNotification('No hay transcripciones para eliminar', 'info');
-    return;
-  }
-
-  const confirmed = confirm(
-    `¿Estás seguro de que quieres eliminar TODAS las transcripciones (${transcripciones.length} archivos)?\n\n` +
-    'Esta acción no se puede deshacer.'
-  );
-
-  if (!confirmed) {
-    return;
-  }
-
-  await deleteAllTranscripciones();
-}
-
-// Eliminar todas las transcripciones
-async function deleteAllTranscripciones() {
-  try {
-    deleteAllTranscripcionesBtn.disabled = true;
-    deleteAllTranscripcionesBtn.textContent = '⏳ Eliminando...';
-
-    const response = await fetch('/api/transcripciones', {
-      method: 'DELETE'
-    });
-
-    const data = await response.json();
-
-    if (!data.success) {
-      throw new Error(data.error || 'Error eliminando transcripciones');
-    }
-
-    console.log('Transcripciones eliminadas:', data.count);
-
-    // Recargar lista
-    await loadTranscripciones();
-
-    showNotification(`${data.count} transcripciones eliminadas correctamente`, 'success');
-
-  } catch (error) {
-    console.error('Error eliminando transcripciones:', error);
-    showNotification('Error al eliminar las transcripciones: ' + error.message, 'error');
-  } finally {
-    deleteAllTranscripcionesBtn.disabled = false;
-    deleteAllTranscripcionesBtn.textContent = '🗑️ Eliminar todos';
-  }
-}
-
 // Estilos para animaciones
 const style = document.createElement('style');
 style.textContent = `
-  @keyframes slideIn {
+  @keyframes slide-in {
     from {
       transform: translateX(400px);
       opacity: 0;
@@ -839,7 +707,7 @@ style.textContent = `
     }
   }
 
-  @keyframes slideOut {
+  @keyframes slide-out {
     from {
       transform: translateX(0);
       opacity: 1;
@@ -848,6 +716,14 @@ style.textContent = `
       transform: translateX(400px);
       opacity: 0;
     }
+  }
+
+  .animate-slide-in {
+    animation: slide-in 0.3s ease;
+  }
+
+  .animate-slide-out {
+    animation: slide-out 0.3s ease;
   }
 `;
 document.head.appendChild(style);
