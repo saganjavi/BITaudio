@@ -188,6 +188,110 @@
       display: flex;
       gap: 1rem;
     }
+
+    .folder-row {
+      cursor: pointer;
+      position: relative;
+    }
+
+    .folder-row:hover {
+      background: rgba(255, 255, 255, 0.08) !important;
+    }
+
+    .folder-name {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .folder-icon {
+      font-size: 1.2rem;
+    }
+
+    .expand-icon {
+      font-size: 0.8rem;
+      transition: transform 0.3s ease;
+      display: inline-block;
+    }
+
+    .expand-icon.expanded {
+      transform: rotate(90deg);
+    }
+
+    .chunk-files-row {
+      display: none;
+      background: rgba(0, 0, 0, 0.2);
+    }
+
+    .chunk-files-row.visible {
+      display: table-row;
+    }
+
+    .chunk-files-cell {
+      padding: 1rem 2rem !important;
+    }
+
+    .chunk-files-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+
+    .chunk-file-item {
+      padding: 0.75rem;
+      background: rgba(255, 255, 255, 0.05);
+      margin-bottom: 0.5rem;
+      border-radius: 6px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .chunk-file-item:hover {
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    .chunk-file-info {
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+      flex: 1;
+    }
+
+    .chunk-file-name {
+      color: rgba(255, 255, 255, 0.8);
+      font-family: monospace;
+    }
+
+    .chunk-file-size {
+      color: rgba(255, 255, 255, 0.5);
+      font-size: 0.875rem;
+    }
+
+    .btn-download {
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      color: white;
+      border: none;
+      padding: 0.4rem 0.8rem;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.875rem;
+      transition: all 0.3s ease;
+      text-decoration: none;
+      display: inline-block;
+    }
+
+    .btn-download:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+    }
+
+    .chunk-loading {
+      text-align: center;
+      padding: 1rem;
+      color: rgba(255, 255, 255, 0.5);
+      font-style: italic;
+    }
   </style>
 </head>
 <body>
@@ -233,6 +337,39 @@
           <div class="loading">
             <div class="spinner"></div>
             <p>Cargando archivos...</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Sección de Chunks -->
+      <section class="files-section" style="margin-top: 2rem;">
+        <div class="files-header">
+          <h2>Carpetas de Chunks</h2>
+          <div class="action-buttons">
+            <button class="btn btn-secondary btn-refresh" id="refreshChunksBtn">
+              🔄 Actualizar
+            </button>
+            <button class="btn btn-delete btn-delete-all" id="deleteAllChunksBtn">
+              🗑️ Eliminar todos
+            </button>
+          </div>
+        </div>
+
+        <div class="files-stats">
+          <div class="stat-item">
+            <div class="label">Total de carpetas</div>
+            <div class="value" id="totalChunkFolders">-</div>
+          </div>
+          <div class="stat-item">
+            <div class="label">Espacio utilizado</div>
+            <div class="value" id="totalChunksSize">-</div>
+          </div>
+        </div>
+
+        <div id="chunksContent">
+          <div class="loading">
+            <div class="spinner"></div>
+            <p>Cargando carpetas de chunks...</p>
           </div>
         </div>
       </section>

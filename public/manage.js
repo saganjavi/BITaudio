@@ -1,5 +1,7 @@
 // Variables globales
 let files = [];
+let chunkFolders = [];
+let expandedFolders = new Set();
 
 // Elementos del DOM
 const filesContent = document.getElementById('filesContent');
@@ -8,12 +10,22 @@ const deleteAllBtn = document.getElementById('deleteAllBtn');
 const totalFilesEl = document.getElementById('totalFiles');
 const totalSizeEl = document.getElementById('totalSize');
 
+// Elementos de chunks
+const chunksContent = document.getElementById('chunksContent');
+const refreshChunksBtn = document.getElementById('refreshChunksBtn');
+const deleteAllChunksBtn = document.getElementById('deleteAllChunksBtn');
+const totalChunkFoldersEl = document.getElementById('totalChunkFolders');
+const totalChunksSizeEl = document.getElementById('totalChunksSize');
+
 // Event listeners
 refreshBtn.addEventListener('click', loadFiles);
 deleteAllBtn.addEventListener('click', confirmDeleteAll);
+refreshChunksBtn.addEventListener('click', loadChunkFolders);
+deleteAllChunksBtn.addEventListener('click', confirmDeleteAllChunks);
 
 // Cargar archivos al iniciar
 loadFiles();
+loadChunkFolders();
 
 // Función para cargar archivos desde el servidor
 async function loadFiles() {
@@ -305,6 +317,284 @@ function showNotification(message, type = 'info') {
       document.body.removeChild(notification);
     }, 300);
   }, 3000);
+}
+
+// ========== FUNCIONES DE CHUNKS ==========
+
+// Cargar carpetas de chunks
+async function loadChunkFolders() {
+  try {
+    showChunksLoading();
+
+    const response = await fetch('/api/chunks');
+
+    if (!response.ok) {
+      throw new Error(`Error HTTP: ${response.status}`);
+    }
+
+    const data = await response.json();
+
+    if (!data.success) {
+      throw new Error(data.error || 'Error desconocido');
+    }
+
+    chunkFolders = data.folders;
+    updateChunksStats();
+    renderChunkFolders();
+
+  } catch (error) {
+    console.error('Error cargando carpetas de chunks:', error);
+    showChunksError('Error al cargar las carpetas: ' + error.message);
+  }
+}
+
+// Mostrar estado de carga de chunks
+function showChunksLoading() {
+  chunksContent.innerHTML = `
+    <div class="loading">
+      <div class="spinner"></div>
+      <p>Cargando carpetas de chunks...</p>
+    </div>
+  `;
+}
+
+// Mostrar error de chunks
+function showChunksError(message) {
+  chunksContent.innerHTML = `
+    <div class="empty-state">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+        <circle cx="12" cy="12" r="10"></circle>
+        <line x1="12" y1="8" x2="12" y2="12"></line>
+        <line x1="12" y1="16" x2="12.01" y2="16"></line>
+      </svg>
+      <h3>Error</h3>
+      <p>${message}</p>
+      <button class="btn btn-primary" onclick="loadChunkFolders()">Reintentar</button>
+    </div>
+  `;
+}
+
+// Actualizar estadísticas de chunks
+function updateChunksStats() {
+  totalChunkFoldersEl.textContent = chunkFolders.length;
+
+  const totalBytes = chunkFolders.reduce((sum, folder) => sum + folder.totalSize, 0);
+  totalChunksSizeEl.textContent = formatBytes(totalBytes);
+}
+
+// Renderizar tabla de carpetas de chunks
+function renderChunkFolders() {
+  if (chunkFolders.length === 0) {
+    chunksContent.innerHTML = `
+      <div class="empty-state">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <path d="M3 7v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-6l-2-2H5a2 2 0 0 0-2 2z"></path>
+        </svg>
+        <h3>No hay carpetas de chunks</h3>
+        <p>No se encontraron carpetas de chunks en el servidor.</p>
+      </div>
+    `;
+    return;
+  }
+
+  chunksContent.innerHTML = `
+    <table class="files-table">
+      <thead>
+        <tr>
+          <th>Carpeta</th>
+          <th>Chunks</th>
+          <th>Tamaño</th>
+          <th>Fecha de creación</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${chunkFolders.map((folder, index) => `
+          <tr class="folder-row" data-folder="${escapeHtml(folder.name)}" onclick="toggleFolder('${escapeHtml(folder.name)}')">
+            <td class="file-name">
+              <div class="folder-name">
+                <span class="expand-icon ${expandedFolders.has(folder.name) ? 'expanded' : ''}" id="expand-${index}">▶</span>
+                <span class="folder-icon">📁</span>
+                <span>${escapeHtml(folder.name)}</span>
+              </div>
+            </td>
+            <td class="file-size">${folder.chunkCount} archivos</td>
+            <td class="file-size">${folder.totalSizeFormatted}</td>
+            <td class="file-date">${formatDate(folder.createdAt)}</td>
+            <td onclick="event.stopPropagation();">
+              <button class="btn-delete" onclick="confirmDeleteChunkFolder('${escapeHtml(folder.name)}')">
+                🗑️ Eliminar
+              </button>
+            </td>
+          </tr>
+          <tr class="chunk-files-row ${expandedFolders.has(folder.name) ? 'visible' : ''}" id="files-${escapeHtml(folder.name)}">
+            <td colspan="5" class="chunk-files-cell">
+              <div class="chunk-loading">⏳ Cargando archivos...</div>
+            </td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  `;
+
+  // Cargar archivos de carpetas expandidas
+  expandedFolders.forEach(folderName => {
+    loadChunkFiles(folderName);
+  });
+}
+
+// Alternar expansión de carpeta
+async function toggleFolder(folderName) {
+  if (expandedFolders.has(folderName)) {
+    expandedFolders.delete(folderName);
+  } else {
+    expandedFolders.add(folderName);
+    await loadChunkFiles(folderName);
+  }
+  renderChunkFolders();
+}
+
+// Cargar archivos de una carpeta de chunks
+async function loadChunkFiles(folderName) {
+  const filesRow = document.getElementById(`files-${folderName}`);
+  if (!filesRow) return;
+
+  const cell = filesRow.querySelector('.chunk-files-cell');
+  cell.innerHTML = '<div class="chunk-loading">⏳ Cargando archivos...</div>';
+
+  try {
+    const response = await fetch(`/api/chunks/${encodeURIComponent(folderName)}`);
+
+    if (!response.ok) {
+      throw new Error(`Error HTTP: ${response.status}`);
+    }
+
+    const data = await response.json();
+
+    if (!data.success) {
+      throw new Error(data.error || 'Error desconocido');
+    }
+
+    if (data.files.length === 0) {
+      cell.innerHTML = '<div class="chunk-loading">Esta carpeta está vacía</div>';
+      return;
+    }
+
+    // Renderizar lista de archivos
+    cell.innerHTML = `
+      <ul class="chunk-files-list">
+        ${data.files.map(file => `
+          <li class="chunk-file-item">
+            <div class="chunk-file-info">
+              <span class="chunk-file-name">🎵 ${escapeHtml(file.name)}</span>
+              <span class="chunk-file-size">${file.sizeFormatted}</span>
+            </div>
+            <a href="/api/chunks/${encodeURIComponent(folderName)}/${encodeURIComponent(file.name)}"
+               class="btn-download"
+               download="${escapeHtml(file.name)}">
+              ⬇️ Descargar
+            </a>
+          </li>
+        `).join('')}
+      </ul>
+    `;
+
+  } catch (error) {
+    console.error('Error cargando archivos de chunks:', error);
+    cell.innerHTML = `<div class="chunk-loading" style="color: #ef4444;">Error: ${error.message}</div>`;
+  }
+}
+
+// Confirmar eliminación de carpeta de chunks
+async function confirmDeleteChunkFolder(folderName) {
+  if (!confirm(`¿Estás seguro de que quieres eliminar la carpeta "${folderName}" y todos sus archivos?`)) {
+    return;
+  }
+
+  await deleteChunkFolder(folderName);
+}
+
+// Eliminar carpeta de chunks
+async function deleteChunkFolder(folderName) {
+  try {
+    const response = await fetch(`/api/chunks/${encodeURIComponent(folderName)}`, {
+      method: 'DELETE'
+    });
+
+    const data = await response.json();
+
+    if (!data.success) {
+      throw new Error(data.error || 'Error eliminando carpeta');
+    }
+
+    console.log('Carpeta eliminada:', folderName);
+
+    // Remover de expandidos si estaba
+    expandedFolders.delete(folderName);
+
+    // Recargar lista de carpetas
+    await loadChunkFolders();
+
+    showNotification(`Carpeta "${folderName}" eliminada correctamente`, 'success');
+
+  } catch (error) {
+    console.error('Error eliminando carpeta:', error);
+    showNotification('Error al eliminar la carpeta: ' + error.message, 'error');
+  }
+}
+
+// Confirmar eliminación de todas las carpetas de chunks
+async function confirmDeleteAllChunks() {
+  if (chunkFolders.length === 0) {
+    showNotification('No hay carpetas para eliminar', 'info');
+    return;
+  }
+
+  const confirmed = confirm(
+    `¿Estás seguro de que quieres eliminar TODAS las carpetas de chunks (${chunkFolders.length} carpetas)?\n\n` +
+    'Esta acción no se puede deshacer.'
+  );
+
+  if (!confirmed) {
+    return;
+  }
+
+  await deleteAllChunkFolders();
+}
+
+// Eliminar todas las carpetas de chunks
+async function deleteAllChunkFolders() {
+  try {
+    deleteAllChunksBtn.disabled = true;
+    deleteAllChunksBtn.textContent = '⏳ Eliminando...';
+
+    const response = await fetch('/api/chunks', {
+      method: 'DELETE'
+    });
+
+    const data = await response.json();
+
+    if (!data.success) {
+      throw new Error(data.error || 'Error eliminando carpetas');
+    }
+
+    console.log('Carpetas eliminadas:', data.count);
+
+    // Limpiar expandidos
+    expandedFolders.clear();
+
+    // Recargar lista de carpetas
+    await loadChunkFolders();
+
+    showNotification(`${data.count} carpetas eliminadas correctamente`, 'success');
+
+  } catch (error) {
+    console.error('Error eliminando carpetas:', error);
+    showNotification('Error al eliminar las carpetas: ' + error.message, 'error');
+  } finally {
+    deleteAllChunksBtn.disabled = false;
+    deleteAllChunksBtn.textContent = '🗑️ Eliminar todos';
+  }
 }
 
 // Estilos para animaciones

@@ -349,6 +349,254 @@ app.delete('/api/uploads', async (req, res) => {
   }
 });
 
+// ========== ENDPOINTS DE GESTIÓN DE CHUNKS ==========
+
+// Listar carpetas de chunks
+app.get('/api/chunks', async (req, res) => {
+  try {
+    const chunksDir = path.join(__dirname, 'chunks');
+
+    // Asegurar que el directorio existe
+    await fs.mkdir(chunksDir, { recursive: true });
+
+    const folders = await fs.readdir(chunksDir);
+    const folderDetails = await Promise.all(
+      folders.map(async (foldername) => {
+        const folderPath = path.join(chunksDir, foldername);
+        const stats = await fs.stat(folderPath);
+
+        // Solo incluir directorios
+        if (!stats.isDirectory()) {
+          return null;
+        }
+
+        // Contar archivos en la carpeta
+        const files = await fs.readdir(folderPath);
+        const chunkFiles = files.filter(f => f.startsWith('chunk_'));
+
+        // Calcular tamaño total de la carpeta
+        let totalSize = 0;
+        for (const file of files) {
+          const filePath = path.join(folderPath, file);
+          const fileStats = await fs.stat(filePath);
+          totalSize += fileStats.size;
+        }
+
+        return {
+          name: foldername,
+          createdAt: stats.birthtime,
+          modifiedAt: stats.mtime,
+          chunkCount: chunkFiles.length,
+          totalSize: totalSize,
+          totalSizeFormatted: formatBytes(totalSize),
+          path: folderPath
+        };
+      })
+    );
+
+    // Filtrar nulls y ordenar por fecha de modificación
+    const validFolders = folderDetails.filter(f => f !== null);
+    validFolders.sort((a, b) => b.modifiedAt - a.modifiedAt);
+
+    res.json({
+      success: true,
+      count: validFolders.length,
+      folders: validFolders
+    });
+  } catch (error) {
+    console.error('Error listando carpetas de chunks:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Error listando carpetas de chunks: ' + error.message
+    });
+  }
+});
+
+// Listar archivos dentro de una carpeta de chunks
+app.get('/api/chunks/:foldername', async (req, res) => {
+  try {
+    const foldername = req.params.foldername;
+
+    // Validar que el foldername no contenga caracteres peligrosos
+    if (foldername.includes('..') || foldername.includes('/') || foldername.includes('\\')) {
+      return res.status(400).json({
+        success: false,
+        error: 'Nombre de carpeta inválido'
+      });
+    }
+
+    const folderPath = path.join(__dirname, 'chunks', foldername);
+
+    // Verificar que la carpeta existe
+    try {
+      const stats = await fs.stat(folderPath);
+      if (!stats.isDirectory()) {
+        return res.status(404).json({
+          success: false,
+          error: 'No es una carpeta válida'
+        });
+      }
+    } catch {
+      return res.status(404).json({
+        success: false,
+        error: 'Carpeta no encontrada'
+      });
+    }
+
+    const files = await fs.readdir(folderPath);
+    const fileDetails = await Promise.all(
+      files.map(async (filename) => {
+        const filePath = path.join(folderPath, filename);
+        const stats = await fs.stat(filePath);
+
+        return {
+          name: filename,
+          size: stats.size,
+          sizeFormatted: formatBytes(stats.size),
+          createdAt: stats.birthtime,
+          modifiedAt: stats.mtime
+        };
+      })
+    );
+
+    res.json({
+      success: true,
+      folder: foldername,
+      count: fileDetails.length,
+      files: fileDetails
+    });
+  } catch (error) {
+    console.error('Error listando archivos de chunks:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Error listando archivos: ' + error.message
+    });
+  }
+});
+
+// Descargar un chunk específico
+app.get('/api/chunks/:foldername/:filename', async (req, res) => {
+  try {
+    const { foldername, filename } = req.params;
+
+    // Validar que no contengan caracteres peligrosos
+    if (foldername.includes('..') || foldername.includes('/') || foldername.includes('\\') ||
+        filename.includes('..') || filename.includes('/') || filename.includes('\\')) {
+      return res.status(400).json({
+        success: false,
+        error: 'Nombre inválido'
+      });
+    }
+
+    const filePath = path.join(__dirname, 'chunks', foldername, filename);
+
+    // Verificar que el archivo existe
+    try {
+      await fs.access(filePath);
+    } catch {
+      return res.status(404).json({
+        success: false,
+        error: 'Archivo no encontrado'
+      });
+    }
+
+    // Enviar el archivo para descarga
+    res.download(filePath, filename, (err) => {
+      if (err) {
+        console.error('Error descargando archivo:', err);
+        if (!res.headersSent) {
+          res.status(500).json({
+            success: false,
+            error: 'Error descargando archivo'
+          });
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Error en descarga:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Error descargando archivo: ' + error.message
+    });
+  }
+});
+
+// Eliminar una carpeta de chunks completa
+app.delete('/api/chunks/:foldername', async (req, res) => {
+  try {
+    const foldername = req.params.foldername;
+
+    // Validar que el foldername no contenga caracteres peligrosos
+    if (foldername.includes('..') || foldername.includes('/') || foldername.includes('\\')) {
+      return res.status(400).json({
+        success: false,
+        error: 'Nombre de carpeta inválido'
+      });
+    }
+
+    const folderPath = path.join(__dirname, 'chunks', foldername);
+
+    // Verificar que la carpeta existe
+    try {
+      await fs.access(folderPath);
+    } catch {
+      return res.status(404).json({
+        success: false,
+        error: 'Carpeta no encontrada'
+      });
+    }
+
+    // Eliminar la carpeta y todo su contenido
+    await fs.rm(folderPath, { recursive: true, force: true });
+
+    console.log(`Carpeta de chunks eliminada: ${foldername}`);
+
+    res.json({
+      success: true,
+      message: `Carpeta ${foldername} eliminada correctamente`
+    });
+  } catch (error) {
+    console.error('Error eliminando carpeta de chunks:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Error eliminando carpeta: ' + error.message
+    });
+  }
+});
+
+// Eliminar todas las carpetas de chunks
+app.delete('/api/chunks', async (req, res) => {
+  try {
+    const chunksDir = path.join(__dirname, 'chunks');
+    const folders = await fs.readdir(chunksDir);
+
+    let deletedCount = 0;
+    for (const folder of folders) {
+      const folderPath = path.join(chunksDir, folder);
+      const stats = await fs.stat(folderPath);
+
+      if (stats.isDirectory()) {
+        await fs.rm(folderPath, { recursive: true, force: true });
+        deletedCount++;
+      }
+    }
+
+    console.log(`${deletedCount} carpetas de chunks eliminadas`);
+
+    res.json({
+      success: true,
+      message: `${deletedCount} carpetas eliminadas correctamente`,
+      count: deletedCount
+    });
+  } catch (error) {
+    console.error('Error eliminando carpetas de chunks:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Error eliminando carpetas: ' + error.message
+    });
+  }
+});
+
 // Función auxiliar para formatear bytes
 function formatBytes(bytes, decimals = 2) {
   if (bytes === 0) return '0 Bytes';
