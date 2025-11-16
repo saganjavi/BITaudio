@@ -88,9 +88,18 @@ async function handleSubmit() {
 
   try {
     console.log('Iniciando upload del archivo:', selectedFile.name);
-    
+
+    // Obtener token de autenticación
+    const token = window.auth.getToken();
+    if (!token) {
+      throw new Error('No autenticado');
+    }
+
     const response = await fetch('/api/transcribe', {
       method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      },
       body: formData
     });
 

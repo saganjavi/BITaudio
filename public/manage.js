@@ -44,7 +44,7 @@ async function loadFiles() {
   try {
     showLoading();
 
-    const response = await fetch('/api/uploads');
+    const response = await window.auth.authenticatedFetch('/api/uploads');
 
     if (!response.ok) {
       throw new Error(`Error HTTP: ${response.status}`);
@@ -145,7 +145,7 @@ async function confirmDelete(filename) {
 
 async function deleteFile(filename) {
   try {
-    const response = await fetch(`/api/uploads/${encodeURIComponent(filename)}`, {
+    const response = await window.auth.authenticatedFetch(`/api/uploads/${encodeURIComponent(filename)}`, {
       method: 'DELETE'
     });
 
@@ -184,7 +184,7 @@ async function deleteAllFiles() {
     deleteAllBtn.disabled = true;
     deleteAllBtn.textContent = '⏳ Eliminando...';
 
-    const response = await fetch('/api/uploads', {
+    const response = await window.auth.authenticatedFetch('/api/uploads', {
       method: 'DELETE'
     });
 
@@ -212,7 +212,7 @@ async function loadChunkFolders() {
   try {
     showChunksLoading();
 
-    const response = await fetch('/api/chunks');
+    const response = await window.auth.authenticatedFetch('/api/chunks');
 
     if (!response.ok) {
       throw new Error(`Error HTTP: ${response.status}`);
@@ -334,7 +334,7 @@ async function loadChunkFiles(folderName) {
   filesDiv.innerHTML = '<div class="text-sm text-gray-500">⏳ Cargando archivos...</div>';
 
   try {
-    const response = await fetch(`/api/chunks/${encodeURIComponent(folderName)}`);
+    const response = await window.auth.authenticatedFetch(`/api/chunks/${encodeURIComponent(folderName)}`);
 
     if (!response.ok) {
       throw new Error(`Error HTTP: ${response.status}`);
@@ -385,7 +385,7 @@ async function confirmDeleteChunkFolder(folderName) {
 
 async function deleteChunkFolder(folderName) {
   try {
-    const response = await fetch(`/api/chunks/${encodeURIComponent(folderName)}`, {
+    const response = await window.auth.authenticatedFetch(`/api/chunks/${encodeURIComponent(folderName)}`, {
       method: 'DELETE'
     });
 
@@ -425,7 +425,7 @@ async function deleteAllChunkFolders() {
     deleteAllChunksBtn.disabled = true;
     deleteAllChunksBtn.textContent = '⏳ Eliminando...';
 
-    const response = await fetch('/api/chunks', {
+    const response = await window.auth.authenticatedFetch('/api/chunks', {
       method: 'DELETE'
     });
 
@@ -454,7 +454,7 @@ async function loadTranscripciones() {
   try {
     showTranscripcionesLoading();
 
-    const response = await fetch('/api/transcripciones');
+    const response = await window.auth.authenticatedFetch('/api/transcripciones');
 
     if (!response.ok) {
       throw new Error(`Error HTTP: ${response.status}`);
@@ -562,7 +562,7 @@ async function confirmDeleteTranscripcion(filename) {
 
 async function deleteTranscripcion(filename) {
   try {
-    const response = await fetch(`/api/transcripciones/${encodeURIComponent(filename)}`, {
+    const response = await window.auth.authenticatedFetch(`/api/transcripciones/${encodeURIComponent(filename)}`, {
       method: 'DELETE'
     });
 
@@ -601,7 +601,7 @@ async function deleteAllTranscripciones() {
     deleteAllTranscripcionesBtn.disabled = true;
     deleteAllTranscripcionesBtn.textContent = '⏳ Eliminando...';
 
-    const response = await fetch('/api/transcripciones', {
+    const response = await window.auth.authenticatedFetch('/api/transcripciones', {
       method: 'DELETE'
     });
 

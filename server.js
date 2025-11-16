@@ -7,9 +7,12 @@ const { spawn } = require('child_process');
 const FormData = require('form-data');
 const fetch = require('node-fetch');
 const PDFDocument = require('pdfkit');
+const jwt = require('jsonwebtoken');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const JWT_SECRET = process.env.JWT_SECRET || 'default-secret-change-in-production';
+const APP_PASSWORD = process.env.APP_PASSWORD || 'admin';
 
 // Configuración de multer para subida de archivos
 const storage = multer.diskStorage({
@@ -47,6 +50,50 @@ const upload = multer({
 // Middleware
 app.use(express.static('public'));
 app.use(express.json());
+
+// Middleware de autenticación JWT
+function authenticateToken(req, res, next) {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
+
+  if (!token) {
+    return res.status(401).json({ success: false, error: 'Token no proporcionado' });
+  }
+
+  jwt.verify(token, JWT_SECRET, (err, user) => {
+    if (err) {
+      return res.status(403).json({ success: false, error: 'Token inválido o expirado' });
+    }
+    req.user = user;
+    next();
+  });
+}
+
+// Endpoint de login
+app.post('/api/login', (req, res) => {
+  const { password } = req.body;
+
+  if (!password) {
+    return res.status(400).json({ success: false, error: 'Contraseña requerida' });
+  }
+
+  if (password !== APP_PASSWORD) {
+    return res.status(401).json({ success: false, error: 'Contraseña incorrecta' });
+  }
+
+  // Generar token JWT con expiración de 2 horas
+  const token = jwt.sign(
+    { authenticated: true, timestamp: Date.now() },
+    JWT_SECRET,
+    { expiresIn: '2h' }
+  );
+
+  res.json({
+    success: true,
+    token: token,
+    expiresIn: 7200 // 2 horas en segundos
+  });
+});
 
 // Asegurar que los directorios existen
 async function ensureDirectories() {
@@ -250,7 +297,7 @@ async function generateTranscriptionPDF(transcription, originalFilename) {
 }
 
 // Endpoint principal de transcripción
-app.post('/api/transcribe', upload.single('audio'), async (req, res) => {
+app.post('/api/transcribe', authenticateToken, upload.single('audio'), async (req, res) => {
   if (!req.file) {
     return res.status(400).json({ error: 'No se recibió ningún archivo' });
   }
@@ -347,7 +394,7 @@ app.post('/api/transcribe', upload.single('audio'), async (req, res) => {
 // ========== ENDPOINTS DE GESTIÓN DE ARCHIVOS ==========
 
 // Listar archivos en uploads/
-app.get('/api/uploads', async (req, res) => {
+app.get('/api/uploads', authenticateToken, async (req, res) => {
   try {
     const uploadsDir = path.join(__dirname, 'uploads');
 
@@ -389,7 +436,7 @@ app.get('/api/uploads', async (req, res) => {
 });
 
 // Eliminar archivo específico
-app.delete('/api/uploads/:filename', async (req, res) => {
+app.delete('/api/uploads/:filename', authenticateToken, async (req, res) => {
   try {
     const filename = req.params.filename;
 
@@ -432,7 +479,7 @@ app.delete('/api/uploads/:filename', async (req, res) => {
 });
 
 // Eliminar todos los archivos
-app.delete('/api/uploads', async (req, res) => {
+app.delete('/api/uploads', authenticateToken, async (req, res) => {
   try {
     const uploadsDir = path.join(__dirname, 'uploads');
     const files = await fs.readdir(uploadsDir);
@@ -463,7 +510,7 @@ app.delete('/api/uploads', async (req, res) => {
 // ========== ENDPOINTS DE GESTIÓN DE CHUNKS ==========
 
 // Listar carpetas de chunks
-app.get('/api/chunks', async (req, res) => {
+app.get('/api/chunks', authenticateToken, async (req, res) => {
   try {
     const chunksDir = path.join(__dirname, 'chunks');
 
@@ -524,7 +571,7 @@ app.get('/api/chunks', async (req, res) => {
 });
 
 // Listar archivos dentro de una carpeta de chunks
-app.get('/api/chunks/:foldername', async (req, res) => {
+app.get('/api/chunks/:foldername', authenticateToken, async (req, res) => {
   try {
     const foldername = req.params.foldername;
 
@@ -586,7 +633,7 @@ app.get('/api/chunks/:foldername', async (req, res) => {
 });
 
 // Descargar un chunk específico
-app.get('/api/chunks/:foldername/:filename', async (req, res) => {
+app.get('/api/chunks/:foldername/:filename', authenticateToken, async (req, res) => {
   try {
     const { foldername, filename } = req.params;
 
@@ -633,7 +680,7 @@ app.get('/api/chunks/:foldername/:filename', async (req, res) => {
 });
 
 // Eliminar una carpeta de chunks completa
-app.delete('/api/chunks/:foldername', async (req, res) => {
+app.delete('/api/chunks/:foldername', authenticateToken, async (req, res) => {
   try {
     const foldername = req.params.foldername;
 
@@ -676,7 +723,7 @@ app.delete('/api/chunks/:foldername', async (req, res) => {
 });
 
 // Eliminar todas las carpetas de chunks
-app.delete('/api/chunks', async (req, res) => {
+app.delete('/api/chunks', authenticateToken, async (req, res) => {
   try {
     const chunksDir = path.join(__dirname, 'chunks');
     const folders = await fs.readdir(chunksDir);
@@ -711,7 +758,7 @@ app.delete('/api/chunks', async (req, res) => {
 // ========== ENDPOINTS DE GESTIÓN DE TRANSCRIPCIONES ==========
 
 // Listar transcripciones PDF
-app.get('/api/transcripciones', async (req, res) => {
+app.get('/api/transcripciones', authenticateToken, async (req, res) => {
   try {
     const transcripcionesDir = path.join(__dirname, 'transcripciones');
 
@@ -755,7 +802,7 @@ app.get('/api/transcripciones', async (req, res) => {
 });
 
 // Descargar transcripción PDF
-app.get('/api/transcripciones/:filename', async (req, res) => {
+app.get('/api/transcripciones/:filename', authenticateToken, async (req, res) => {
   try {
     const filename = req.params.filename;
 
@@ -801,7 +848,7 @@ app.get('/api/transcripciones/:filename', async (req, res) => {
 });
 
 // Eliminar transcripción PDF
-app.delete('/api/transcripciones/:filename', async (req, res) => {
+app.delete('/api/transcripciones/:filename', authenticateToken, async (req, res) => {
   try {
     const filename = req.params.filename;
 
@@ -844,7 +891,7 @@ app.delete('/api/transcripciones/:filename', async (req, res) => {
 });
 
 // Eliminar todas las transcripciones
-app.delete('/api/transcripciones', async (req, res) => {
+app.delete('/api/transcripciones', authenticateToken, async (req, res) => {
   try {
     const transcripcionesDir = path.join(__dirname, 'transcripciones');
     const files = await fs.readdir(transcripcionesDir);
